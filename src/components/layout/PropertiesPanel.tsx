@@ -1,11 +1,13 @@
 import { useSelection } from '../../hooks/useSelection';
 import { useProject } from '../../hooks/useProject';
+import { useProjectStore } from '../../store/projectStore';
 import { DimensionInput } from '../ui/DimensionInput';
 import { MaterialPicker } from '../ui/MaterialPicker';
 import { getMaterialById } from '../../core/materials';
 
 export function PropertiesPanel() {
   const { selectedBox, updateBox, deleteBox } = useSelection();
+  const { duplicateBox } = useProjectStore();
   const { project } = useProject();
 
   if (!selectedBox) {
@@ -158,13 +160,21 @@ export function PropertiesPanel() {
           </div>
         </div>
 
-        {/* Delete */}
-        <button
-          onClick={() => deleteBox(selectedBox.id)}
-          className="w-full px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg shadow-sm transition-colors"
-        >
-          Delete Box
-        </button>
+        {/* Actions */}
+        <div className="space-y-2">
+          <button
+            onClick={() => duplicateBox(selectedBox.id)}
+            className="w-full px-4 py-2 bg-slate-500 hover:bg-slate-600 text-white text-sm font-medium rounded-lg shadow-sm transition-colors"
+          >
+            Duplicate Box
+          </button>
+          <button
+            onClick={() => deleteBox(selectedBox.id)}
+            className="w-full px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg shadow-sm transition-colors"
+          >
+            Delete Box
+          </button>
+        </div>
       </div>
     </div>
   );

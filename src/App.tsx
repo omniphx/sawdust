@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ProjectProvider, useProjectStore } from './store/projectStore';
 import { Toolbar } from './components/layout/Toolbar';
 import { Viewport } from './components/viewport/Viewport';
@@ -7,8 +7,31 @@ import { BOMPanel } from './components/layout/BOMPanel';
 import { ComponentLibraryPanel } from './components/layout/ComponentLibraryPanel';
 
 function AppContent() {
-  const { state } = useProjectStore();
+  const { state, copyBox, pasteBox, duplicateBox } = useProjectStore();
   const [showComponentLibrary, setShowComponentLibrary] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't intercept when typing in an input
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
+      if (e.metaKey || e.ctrlKey) {
+        if (e.key === 'c' && state.selectedBoxId) {
+          e.preventDefault();
+          copyBox(state.selectedBoxId);
+        } else if (e.key === 'v' && state.clipboard) {
+          e.preventDefault();
+          pasteBox();
+        } else if (e.key === 'd' && state.selectedBoxId) {
+          e.preventDefault();
+          duplicateBox(state.selectedBoxId);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [state.selectedBoxId, state.clipboard, copyBox, pasteBox, duplicateBox]);
 
   const isBuilderMode = state.mode === 'component-builder';
 

@@ -26,6 +26,7 @@ interface ProjectState {
   mode: 'project' | 'component-builder';
   currentTemplate: ComponentTemplate | null;
   componentLibrary: ComponentTemplate[];
+  clipboard: Box | null;
 }
 
 type ProjectAction =
@@ -42,7 +43,10 @@ type ProjectAction =
   | { type: 'CANCEL_COMPONENT_BUILDER' }
   | { type: 'PLACE_COMPONENT'; template: ComponentTemplate }
   | { type: 'LOAD_COMPONENTS'; components: ComponentTemplate[] }
-  | { type: 'DELETE_COMPONENT'; id: string };
+  | { type: 'DELETE_COMPONENT'; id: string }
+  | { type: 'COPY_BOX'; box: Box }
+  | { type: 'PASTE_BOX'; box: Box }
+  | { type: 'DUPLICATE_BOX'; box: Box };
 
 function createDefaultProject(): Project {
   return {
@@ -173,6 +177,16 @@ function projectReducer(state: ProjectState, action: ProjectAction): ProjectStat
         componentLibrary: state.componentLibrary.filter((c) => c.id !== action.id),
       };
 
+    case 'COPY_BOX':
+      return { ...state, clipboard: action.box };
+
+    case 'PASTE_BOX':
+    case 'DUPLICATE_BOX': {
+      const boxes = [...getActiveBoxes(state), action.box];
+      const newState = setActiveBoxes(state, boxes);
+      return { ...newState, selectedBoxId: action.box.id };
+    }
+
     default:
       return state;
   }
@@ -187,6 +201,9 @@ interface ProjectContextValue {
   setUnitSystem: (unitSystem: UnitSystem) => void;
   setProjectName: (name: string) => void;
   getSelectedBox: () => Box | undefined;
+  duplicateBox: (id: string) => void;
+  copyBox: (id: string) => void;
+  pasteBox: () => void;
   startComponentBuilder: () => void;
   saveComponent: (name: string) => void;
   cancelComponentBuilder: () => void;
@@ -204,6 +221,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     mode: 'project',
     currentTemplate: null,
     componentLibrary: [],
+    clipboard: null,
   });
 
   // Load project and components from IndexedDB on mount
@@ -313,6 +331,66 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     return boxes.find((box) => box.id === state.selectedBoxId);
   }, [state]);
 
+  const findNonOverlappingPosition = useCallback((sourceBox: Box, boxes: Box[]) => {
+    const spacing = 0.25;
+    let posX = sourceBox.position.x + sourceBox.dimensions.width + spacing;
+    const posZ = sourceBox.position.z;
+    const dim = sourceBox.dimensions;
+
+    const isOverlapping = (x: number, z: number) => {
+      for (const b of boxes) {
+        if (
+          x < b.position.x + b.dimensions.width + spacing &&
+          b.position.x < x + dim.width + spacing &&
+          z < b.position.z + b.dimensions.depth + spacing &&
+          b.position.z < z + dim.depth + spacing
+        ) {
+          return true;
+        }
+      }
+      return false;
+    };
+
+    while (isOverlapping(posX, posZ)) {
+      posX += dim.width + spacing;
+    }
+
+    return { x: posX, y: sourceBox.position.y, z: posZ };
+  }, []);
+
+  const duplicateBox = useCallback((id: string) => {
+    const boxes = getActiveBoxes(state);
+    const source = boxes.find((b) => b.id === id);
+    if (!source) return;
+
+    const newBox: Box = {
+      ...source,
+      id: uuid(),
+      position: findNonOverlappingPosition(source, boxes),
+      label: source.label ? `${source.label} (copy)` : undefined,
+    };
+    dispatch({ type: 'DUPLICATE_BOX', box: newBox });
+  }, [state, findNonOverlappingPosition]);
+
+  const copyBox = useCallback((id: string) => {
+    const boxes = getActiveBoxes(state);
+    const source = boxes.find((b) => b.id === id);
+    if (!source) return;
+    dispatch({ type: 'COPY_BOX', box: source });
+  }, [state]);
+
+  const pasteBox = useCallback(() => {
+    if (!state.clipboard) return;
+    const boxes = getActiveBoxes(state);
+    const newBox: Box = {
+      ...state.clipboard,
+      id: uuid(),
+      position: findNonOverlappingPosition(state.clipboard, boxes),
+      label: state.clipboard.label ? `${state.clipboard.label} (copy)` : undefined,
+    };
+    dispatch({ type: 'PASTE_BOX', box: newBox });
+  }, [state, findNonOverlappingPosition]);
+
   const startComponentBuilder = useCallback(() => {
     dispatch({ type: 'START_COMPONENT_BUILDER' });
   }, []);
@@ -352,6 +430,9 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         setUnitSystem,
         setProjectName,
         getSelectedBox,
+        duplicateBox,
+        copyBox,
+        pasteBox,
         startComponentBuilder,
         saveComponent: saveComponentAction,
         cancelComponentBuilder,
