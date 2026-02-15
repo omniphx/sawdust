@@ -5,25 +5,25 @@ import {
   useEffect,
   useCallback,
   ReactNode,
-} from 'react';
-import { v4 as uuid } from 'uuid';
-import { Box, Project, UnitSystem, ComponentTemplate } from '../types';
+} from "react";
+import { v4 as uuid } from "uuid";
+import { Box, Project, UnitSystem, ComponentTemplate } from "../types";
 import {
   saveProject,
   loadDefaultProject,
   saveComponent as saveComponentToDb,
   getAllComponents,
   deleteComponent as deleteComponentFromDb,
-} from '../core/storage';
-import { DEFAULT_MATERIALS, getMaterialById } from '../core/materials';
-import { placeComponentBoxes } from '../core/placement';
-import { normalizeUnitSystem } from '../core/units';
+} from "../core/storage";
+import { DEFAULT_MATERIALS, getMaterialById } from "../core/materials";
+import { placeComponentBoxes } from "../core/placement";
+import { normalizeUnitSystem } from "../core/units";
 
 interface ProjectState {
   project: Project;
   selectedBoxIds: string[];
   isLoading: boolean;
-  mode: 'project' | 'component-builder';
+  mode: "project" | "component-builder";
   currentTemplate: ComponentTemplate | null;
   componentLibrary: ComponentTemplate[];
   clipboard: Box[] | null;
@@ -31,54 +31,57 @@ interface ProjectState {
   toastMessage: string | null;
   history: Box[][];
   historyIndex: number;
+  historyBatchAnchor: Box[] | null;
 }
 
 type ProjectAction =
-  | { type: 'SET_PROJECT'; project: Project }
-  | { type: 'SET_LOADING'; isLoading: boolean }
-  | { type: 'ADD_BOX'; box: Box }
-  | { type: 'UPDATE_BOX'; id: string; updates: Partial<Box> }
-  | { type: 'DELETE_BOX'; id: string }
-  | { type: 'SELECT_BOXES'; ids: string[] }
-  | { type: 'TOGGLE_BOX_SELECTION'; id: string }
-  | { type: 'SET_UNIT_SYSTEM'; unitSystem: UnitSystem }
-  | { type: 'SET_PROJECT_NAME'; name: string }
-  | { type: 'START_COMPONENT_BUILDER' }
-  | { type: 'SAVE_COMPONENT'; name: string }
-  | { type: 'CANCEL_COMPONENT_BUILDER' }
-  | { type: 'PLACE_COMPONENT'; template: ComponentTemplate }
-  | { type: 'LOAD_COMPONENTS'; components: ComponentTemplate[] }
-  | { type: 'DELETE_COMPONENT'; id: string }
-  | { type: 'COPY_BOXES'; boxes: Box[] }
-  | { type: 'PASTE_BOXES'; boxes: Box[] }
-  | { type: 'DUPLICATE_BOXES'; boxes: Box[] }
-  | { type: 'DELETE_SELECTED_BOXES'; ids: string[] }
-  | { type: 'TOGGLE_SNAP' }
-  | { type: 'GROUP_BOXES'; ids: string[]; groupId: string }
-  | { type: 'UNGROUP_BOXES'; ids: string[] }
-  | { type: 'TOGGLE_LOCK'; ids: string[] }
-  | { type: 'SHOW_TOAST'; message: string }
-  | { type: 'DISMISS_TOAST' }
-  | { type: 'UNDO' }
-  | { type: 'REDO' };
+  | { type: "SET_PROJECT"; project: Project }
+  | { type: "SET_LOADING"; isLoading: boolean }
+  | { type: "ADD_BOX"; box: Box }
+  | { type: "UPDATE_BOX"; id: string; updates: Partial<Box> }
+  | { type: "DELETE_BOX"; id: string }
+  | { type: "SELECT_BOXES"; ids: string[] }
+  | { type: "TOGGLE_BOX_SELECTION"; id: string }
+  | { type: "SET_UNIT_SYSTEM"; unitSystem: UnitSystem }
+  | { type: "SET_PROJECT_NAME"; name: string }
+  | { type: "START_COMPONENT_BUILDER" }
+  | { type: "SAVE_COMPONENT"; name: string }
+  | { type: "CANCEL_COMPONENT_BUILDER" }
+  | { type: "PLACE_COMPONENT"; template: ComponentTemplate }
+  | { type: "LOAD_COMPONENTS"; components: ComponentTemplate[] }
+  | { type: "DELETE_COMPONENT"; id: string }
+  | { type: "COPY_BOXES"; boxes: Box[] }
+  | { type: "PASTE_BOXES"; boxes: Box[] }
+  | { type: "DUPLICATE_BOXES"; boxes: Box[] }
+  | { type: "DELETE_SELECTED_BOXES"; ids: string[] }
+  | { type: "TOGGLE_SNAP" }
+  | { type: "GROUP_BOXES"; ids: string[]; groupId: string }
+  | { type: "UNGROUP_BOXES"; ids: string[] }
+  | { type: "TOGGLE_LOCK"; ids: string[] }
+  | { type: "SHOW_TOAST"; message: string }
+  | { type: "DISMISS_TOAST" }
+  | { type: "UNDO" }
+  | { type: "REDO" }
+  | { type: "HISTORY_BATCH_START" }
+  | { type: "HISTORY_BATCH_END" };
 
 function createDefaultProject(): Project {
   return {
     id: uuid(),
-    name: 'Sauna Project',
-    unitSystem: 'feet',
+    name: "Sauna Project",
+    unitSystem: "feet",
     boxes: [],
   };
 }
 
 function getActiveBoxes(state: ProjectState): Box[] {
-  return state.mode === 'component-builder'
+  return state.mode === "component-builder"
     ? (state.currentTemplate?.boxes ?? [])
     : state.project.boxes;
 }
 
 function setActiveBoxes(state: ProjectState, boxes: Box[]): ProjectState {
-  if (state.mode === 'component-builder' && state.currentTemplate) {
+  if (state.mode === "component-builder" && state.currentTemplate) {
     return {
       ...state,
       currentTemplate: { ...state.currentTemplate, boxes },
@@ -90,9 +93,12 @@ function setActiveBoxes(state: ProjectState, boxes: Box[]): ProjectState {
   };
 }
 
-function projectReducer(state: ProjectState, action: ProjectAction): ProjectState {
+function projectReducer(
+  state: ProjectState,
+  action: ProjectAction,
+): ProjectState {
   switch (action.type) {
-    case 'SET_PROJECT': {
+    case "SET_PROJECT": {
       const snapshot = action.project.boxes.map((b) => ({
         ...b,
         position: { ...b.position },
@@ -107,22 +113,22 @@ function projectReducer(state: ProjectState, action: ProjectAction): ProjectStat
       };
     }
 
-    case 'SET_LOADING':
+    case "SET_LOADING":
       return { ...state, isLoading: action.isLoading };
 
-    case 'ADD_BOX': {
+    case "ADD_BOX": {
       const boxes = [...getActiveBoxes(state), action.box];
       return setActiveBoxes(state, boxes);
     }
 
-    case 'UPDATE_BOX': {
+    case "UPDATE_BOX": {
       const boxes = getActiveBoxes(state).map((box) =>
-        box.id === action.id ? { ...box, ...action.updates } : box
+        box.id === action.id ? { ...box, ...action.updates } : box,
       );
       return setActiveBoxes(state, boxes);
     }
 
-    case 'DELETE_BOX': {
+    case "DELETE_BOX": {
       const boxes = getActiveBoxes(state).filter((box) => box.id !== action.id);
       const newState = setActiveBoxes(state, boxes);
       return {
@@ -131,9 +137,11 @@ function projectReducer(state: ProjectState, action: ProjectAction): ProjectStat
       };
     }
 
-    case 'DELETE_SELECTED_BOXES': {
+    case "DELETE_SELECTED_BOXES": {
       const idsToDelete = new Set(action.ids);
-      const boxes = getActiveBoxes(state).filter((box) => !idsToDelete.has(box.id));
+      const boxes = getActiveBoxes(state).filter(
+        (box) => !idsToDelete.has(box.id),
+      );
       const newState = setActiveBoxes(state, boxes);
       return {
         ...newState,
@@ -141,10 +149,10 @@ function projectReducer(state: ProjectState, action: ProjectAction): ProjectStat
       };
     }
 
-    case 'SELECT_BOXES':
+    case "SELECT_BOXES":
       return { ...state, selectedBoxIds: action.ids };
 
-    case 'TOGGLE_BOX_SELECTION': {
+    case "TOGGLE_BOX_SELECTION": {
       const isSelected = state.selectedBoxIds.includes(action.id);
       return {
         ...state,
@@ -154,32 +162,32 @@ function projectReducer(state: ProjectState, action: ProjectAction): ProjectStat
       };
     }
 
-    case 'SET_UNIT_SYSTEM':
+    case "SET_UNIT_SYSTEM":
       return {
         ...state,
         project: { ...state.project, unitSystem: action.unitSystem },
       };
 
-    case 'SET_PROJECT_NAME':
+    case "SET_PROJECT_NAME":
       return {
         ...state,
         project: { ...state.project, name: action.name },
       };
 
-    case 'START_COMPONENT_BUILDER':
+    case "START_COMPONENT_BUILDER":
       return {
         ...state,
-        mode: 'component-builder',
+        mode: "component-builder",
         selectedBoxIds: [],
         currentTemplate: {
           id: uuid(),
-          name: '',
+          name: "",
           boxes: [],
           createdAt: Date.now(),
         },
       };
 
-    case 'SAVE_COMPONENT': {
+    case "SAVE_COMPONENT": {
       if (!state.currentTemplate) return state;
       const saved: ComponentTemplate = {
         ...state.currentTemplate,
@@ -188,23 +196,26 @@ function projectReducer(state: ProjectState, action: ProjectAction): ProjectStat
       };
       return {
         ...state,
-        mode: 'project',
+        mode: "project",
         currentTemplate: null,
         selectedBoxIds: [],
         componentLibrary: [saved, ...state.componentLibrary],
       };
     }
 
-    case 'CANCEL_COMPONENT_BUILDER':
+    case "CANCEL_COMPONENT_BUILDER":
       return {
         ...state,
-        mode: 'project',
+        mode: "project",
         currentTemplate: null,
         selectedBoxIds: [],
       };
 
-    case 'PLACE_COMPONENT': {
-      const newBoxes = placeComponentBoxes(action.template, state.project.boxes);
+    case "PLACE_COMPONENT": {
+      const newBoxes = placeComponentBoxes(
+        action.template,
+        state.project.boxes,
+      );
       return {
         ...state,
         project: {
@@ -214,52 +225,54 @@ function projectReducer(state: ProjectState, action: ProjectAction): ProjectStat
       };
     }
 
-    case 'LOAD_COMPONENTS':
+    case "LOAD_COMPONENTS":
       return { ...state, componentLibrary: action.components };
 
-    case 'DELETE_COMPONENT':
+    case "DELETE_COMPONENT":
       return {
         ...state,
-        componentLibrary: state.componentLibrary.filter((c) => c.id !== action.id),
+        componentLibrary: state.componentLibrary.filter(
+          (c) => c.id !== action.id,
+        ),
       };
 
-    case 'TOGGLE_SNAP':
+    case "TOGGLE_SNAP":
       return { ...state, snapEnabled: !state.snapEnabled };
 
-    case 'GROUP_BOXES': {
+    case "GROUP_BOXES": {
       const idSet = new Set(action.ids);
       const boxes = getActiveBoxes(state).map((box) =>
-        idSet.has(box.id) ? { ...box, groupId: action.groupId } : box
+        idSet.has(box.id) ? { ...box, groupId: action.groupId } : box,
       );
       return setActiveBoxes(state, boxes);
     }
 
-    case 'UNGROUP_BOXES': {
+    case "UNGROUP_BOXES": {
       const idSet = new Set(action.ids);
       const boxes = getActiveBoxes(state).map((box) =>
-        idSet.has(box.id) ? { ...box, groupId: undefined } : box
+        idSet.has(box.id) ? { ...box, groupId: undefined } : box,
       );
       return setActiveBoxes(state, boxes);
     }
 
-    case 'TOGGLE_LOCK': {
+    case "TOGGLE_LOCK": {
       const idSet = new Set(action.ids);
       const targetBoxes = getActiveBoxes(state).filter((b) => idSet.has(b.id));
       // If any are unlocked, lock all; if all locked, unlock all
       const allLocked = targetBoxes.every((b) => b.locked);
       const boxes = getActiveBoxes(state).map((box) =>
-        idSet.has(box.id) ? { ...box, locked: !allLocked } : box
+        idSet.has(box.id) ? { ...box, locked: !allLocked } : box,
       );
       return setActiveBoxes(state, boxes);
     }
 
-    case 'SHOW_TOAST':
+    case "SHOW_TOAST":
       return { ...state, toastMessage: action.message };
 
-    case 'DISMISS_TOAST':
+    case "DISMISS_TOAST":
       return { ...state, toastMessage: null };
 
-    case 'UNDO': {
+    case "UNDO": {
       if (state.historyIndex <= 0) return state;
       const newIndex = state.historyIndex - 1;
       const boxes = state.history[newIndex].map((b) => ({ ...b }));
@@ -270,7 +283,7 @@ function projectReducer(state: ProjectState, action: ProjectAction): ProjectStat
       };
     }
 
-    case 'REDO': {
+    case "REDO": {
       if (state.historyIndex >= state.history.length - 1) return state;
       const newIndex = state.historyIndex + 1;
       const boxes = state.history[newIndex].map((b) => ({ ...b }));
@@ -281,14 +294,55 @@ function projectReducer(state: ProjectState, action: ProjectAction): ProjectStat
       };
     }
 
-    case 'COPY_BOXES':
+    case "COPY_BOXES":
       return { ...state, clipboard: action.boxes };
 
-    case 'PASTE_BOXES':
-    case 'DUPLICATE_BOXES': {
+    case "PASTE_BOXES":
+    case "DUPLICATE_BOXES": {
       const boxes = [...getActiveBoxes(state), ...action.boxes];
       const newState = setActiveBoxes(state, boxes);
       return { ...newState, selectedBoxIds: action.boxes.map((b) => b.id) };
+    }
+
+    case "HISTORY_BATCH_START": {
+      const anchor = getActiveBoxes(state).map((b) => ({
+        ...b,
+        position: { ...b.position },
+        dimensions: { ...b.dimensions },
+      }));
+      return { ...state, historyBatchAnchor: anchor };
+    }
+
+    case "HISTORY_BATCH_END": {
+      if (!state.historyBatchAnchor) return state;
+      const currentBoxes = getActiveBoxes(state);
+      const anchorStr = JSON.stringify(state.historyBatchAnchor);
+      const currentStr = JSON.stringify(currentBoxes);
+      if (anchorStr !== currentStr) {
+        const snapshot = currentBoxes.map((b) => ({
+          ...b,
+          position: { ...b.position },
+          dimensions: { ...b.dimensions },
+        }));
+        // Rewind history to anchor point, push anchor as "before" and current as "after"
+        const anchorSnapshot = state.historyBatchAnchor;
+        const history = [...state.history.slice(0, state.historyIndex + 1)];
+        // Replace the last entry with the anchor (pre-batch state), then add current
+        if (history.length > 0 && state.historyIndex >= 0) {
+          history[state.historyIndex] = anchorSnapshot;
+        }
+        history.push(snapshot);
+        // Cap at 50
+        const capped =
+          history.length > 50 ? history.slice(history.length - 50) : history;
+        return {
+          ...state,
+          historyBatchAnchor: null,
+          history: capped,
+          historyIndex: capped.length - 1,
+        };
+      }
+      return { ...state, historyBatchAnchor: null };
     }
 
     default:
@@ -297,35 +351,57 @@ function projectReducer(state: ProjectState, action: ProjectAction): ProjectStat
 }
 
 // Actions that mutate boxes and should be tracked in undo history
-const BOX_MUTATING_ACTIONS = new Set<ProjectAction['type']>([
-  'ADD_BOX',
-  'DELETE_BOX',
-  'UPDATE_BOX',
-  'DUPLICATE_BOXES',
-  'PASTE_BOXES',
-  'DELETE_SELECTED_BOXES',
-  'GROUP_BOXES',
-  'UNGROUP_BOXES',
-  'TOGGLE_LOCK',
-  'PLACE_COMPONENT',
+const BOX_MUTATING_ACTIONS = new Set<ProjectAction["type"]>([
+  "ADD_BOX",
+  "DELETE_BOX",
+  "UPDATE_BOX",
+  "DUPLICATE_BOXES",
+  "PASTE_BOXES",
+  "DELETE_SELECTED_BOXES",
+  "GROUP_BOXES",
+  "UNGROUP_BOXES",
+  "TOGGLE_LOCK",
+  "PLACE_COMPONENT",
 ]);
 
-function projectReducerWithHistory(state: ProjectState, action: ProjectAction): ProjectState {
+const MAX_HISTORY = 50;
+
+function projectReducerWithHistory(
+  state: ProjectState,
+  action: ProjectAction,
+): ProjectState {
   const newState = projectReducer(state, action);
 
   // Only track history for box-mutating actions, and only if boxes actually changed
   if (BOX_MUTATING_ACTIONS.has(action.type)) {
+    // Suppress history during batch (UPDATE_BOX calls during drag)
+    if (state.historyBatchAnchor !== null && action.type === "UPDATE_BOX") {
+      return newState;
+    }
+
     const oldBoxes = getActiveBoxes(state);
     const newBoxes = getActiveBoxes(newState);
     if (oldBoxes !== newBoxes) {
       // Deep clone for snapshot
-      const snapshot = newBoxes.map((b) => ({ ...b, position: { ...b.position }, dimensions: { ...b.dimensions } }));
+      const snapshot = newBoxes.map((b) => ({
+        ...b,
+        position: { ...b.position },
+        dimensions: { ...b.dimensions },
+      }));
       // Truncate any redo history beyond current index
-      const history = [...state.history.slice(0, state.historyIndex + 1), snapshot];
+      const history = [
+        ...state.history.slice(0, state.historyIndex + 1),
+        snapshot,
+      ];
+      // Cap at MAX_HISTORY
+      const capped =
+        history.length > MAX_HISTORY
+          ? history.slice(history.length - MAX_HISTORY)
+          : history;
       return {
         ...newState,
-        history,
-        historyIndex: history.length - 1,
+        history: capped,
+        historyIndex: capped.length - 1,
       };
     }
   }
@@ -363,6 +439,8 @@ interface ProjectContextValue {
   redo: () => void;
   canUndo: boolean;
   canRedo: boolean;
+  historyBatchStart: () => void;
+  historyBatchEnd: () => void;
 }
 
 const ProjectContext = createContext<ProjectContextValue | null>(null);
@@ -372,7 +450,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     project: createDefaultProject(),
     selectedBoxIds: [],
     isLoading: true,
-    mode: 'project',
+    mode: "project",
     currentTemplate: null,
     componentLibrary: [],
     clipboard: null,
@@ -380,6 +458,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     toastMessage: null,
     history: [[]],
     historyIndex: 0,
+    historyBatchAnchor: null,
   });
 
   // Load project and components from IndexedDB on mount
@@ -389,12 +468,12 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         if (saved) {
           // Normalize legacy unit system values (e.g. 'imperial' → 'feet')
           saved.unitSystem = normalizeUnitSystem(saved.unitSystem);
-          dispatch({ type: 'SET_PROJECT', project: saved });
+          dispatch({ type: "SET_PROJECT", project: saved });
         } else {
-          dispatch({ type: 'SET_LOADING', isLoading: false });
+          dispatch({ type: "SET_LOADING", isLoading: false });
         }
-        dispatch({ type: 'LOAD_COMPONENTS', components });
-      }
+        dispatch({ type: "LOAD_COMPONENTS", components });
+      },
     );
   }, []);
 
@@ -405,87 +484,94 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     }
   }, [state.project, state.isLoading]);
 
-  const addBox = useCallback((materialId?: string) => {
-    const boxes = getActiveBoxes(state);
+  const addBox = useCallback(
+    (materialId?: string) => {
+      const boxes = getActiveBoxes(state);
 
-    // Cycle through materials so each new box gets a different color
-    if (!materialId) {
-      const materialIds = DEFAULT_MATERIALS.map((m) => m.id);
-      const usedCounts = new Map<string, number>();
-      for (const b of boxes) {
-        usedCounts.set(b.materialId, (usedCounts.get(b.materialId) ?? 0) + 1);
-      }
-      let minCount = Infinity;
-      let picked = materialIds[0];
-      for (const id of materialIds) {
-        const count = usedCounts.get(id) ?? 0;
-        if (count < minCount) {
-          minCount = count;
-          picked = id;
+      // Cycle through materials so each new box gets a different color
+      if (!materialId) {
+        const materialIds = DEFAULT_MATERIALS.map((m) => m.id);
+        const usedCounts = new Map<string, number>();
+        for (const b of boxes) {
+          usedCounts.set(b.materialId, (usedCounts.get(b.materialId) ?? 0) + 1);
         }
-      }
-      materialId = picked;
-    }
-
-    // Use material's actual dimensions if available
-    const material = getMaterialById(materialId);
-    const defaultDim = material?.defaultDimensions ?? { width: 1, height: 1, depth: 1 };
-    let posX = 0;
-    const posZ = 0;
-    const spacing = 0.25;
-
-    // Position is the bottom-left-front corner, so box extends from (x,y,z) to (x+w,y+h,z+d)
-    const isOverlapping = (x: number, z: number) => {
-      for (const b of boxes) {
-        if (
-          x < b.position.x + b.dimensions.width + spacing &&
-          b.position.x < x + defaultDim.width + spacing &&
-          z < b.position.z + b.dimensions.depth + spacing &&
-          b.position.z < z + defaultDim.depth + spacing
-        ) {
-          return true;
+        let minCount = Infinity;
+        let picked = materialIds[0];
+        for (const id of materialIds) {
+          const count = usedCounts.get(id) ?? 0;
+          if (count < minCount) {
+            minCount = count;
+            picked = id;
+          }
         }
+        materialId = picked;
       }
-      return false;
-    };
 
-    while (isOverlapping(posX, posZ)) {
-      posX += defaultDim.width + spacing;
-    }
+      // Use material's actual dimensions if available
+      const material = getMaterialById(materialId);
+      const defaultDim = material?.defaultDimensions ?? {
+        width: 1,
+        height: 1,
+        depth: 1,
+      };
+      let posX = 0;
+      const posZ = 0;
+      const spacing = 0.25;
 
-    const box: Box = {
-      id: uuid(),
-      position: { x: posX, y: 0, z: posZ },
-      dimensions: defaultDim,
-      rotation: 0,
-      materialId,
-    };
-    dispatch({ type: 'ADD_BOX', box });
-    dispatch({ type: 'SELECT_BOXES', ids: [box.id] });
-  }, [state]);
+      // Position is the bottom-left-front corner, so box extends from (x,y,z) to (x+w,y+h,z+d)
+      const isOverlapping = (x: number, z: number) => {
+        for (const b of boxes) {
+          if (
+            x < b.position.x + b.dimensions.width + spacing &&
+            b.position.x < x + defaultDim.width + spacing &&
+            z < b.position.z + b.dimensions.depth + spacing &&
+            b.position.z < z + defaultDim.depth + spacing
+          ) {
+            return true;
+          }
+        }
+        return false;
+      };
+
+      while (isOverlapping(posX, posZ)) {
+        posX += defaultDim.width + spacing;
+      }
+
+      const box: Box = {
+        id: uuid(),
+        position: { x: posX, y: 0, z: posZ },
+        dimensions: defaultDim,
+        rotation: 0,
+        materialId,
+      };
+      dispatch({ type: "ADD_BOX", box });
+      dispatch({ type: "SELECT_BOXES", ids: [box.id] });
+    },
+    [state],
+  );
 
   const updateBox = useCallback((id: string, updates: Partial<Box>) => {
-    dispatch({ type: 'UPDATE_BOX', id, updates });
+    dispatch({ type: "UPDATE_BOX", id, updates });
   }, []);
 
   const deleteBox = useCallback((id: string) => {
-    dispatch({ type: 'DELETE_BOX', id });
+    dispatch({ type: "DELETE_BOX", id });
   }, []);
 
   const selectBoxes = useCallback((ids: string[]) => {
-    dispatch({ type: 'SELECT_BOXES', ids });
+    dispatch({ type: "SELECT_BOXES", ids });
   }, []);
 
   const toggleBoxSelection = useCallback((id: string) => {
-    dispatch({ type: 'TOGGLE_BOX_SELECTION', id });
+    dispatch({ type: "TOGGLE_BOX_SELECTION", id });
   }, []);
 
   const setUnitSystem = useCallback((unitSystem: UnitSystem) => {
-    dispatch({ type: 'SET_UNIT_SYSTEM', unitSystem });
+    dispatch({ type: "SET_UNIT_SYSTEM", unitSystem });
   }, []);
 
   const setProjectName = useCallback((name: string) => {
-    dispatch({ type: 'SET_PROJECT_NAME', name });
+    dispatch({ type: "SET_PROJECT_NAME", name });
   }, []);
 
   const getSelectedBox = useCallback(() => {
@@ -499,65 +585,71 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     return boxes.filter((box) => idSet.has(box.id));
   }, [state]);
 
-  const duplicateBoxGroup = useCallback((sourceBoxes: Box[], existingBoxes: Box[]) => {
-    const spacing = 0.25;
+  const duplicateBoxGroup = useCallback(
+    (sourceBoxes: Box[], existingBoxes: Box[]) => {
+      const spacing = 0.25;
 
-    // Compute bounding box of the group
-    let minX = Infinity, minZ = Infinity, maxX = -Infinity, maxZ = -Infinity;
-    for (const b of sourceBoxes) {
-      minX = Math.min(minX, b.position.x);
-      minZ = Math.min(minZ, b.position.z);
-      maxX = Math.max(maxX, b.position.x + b.dimensions.width);
-      maxZ = Math.max(maxZ, b.position.z + b.dimensions.depth);
-    }
-    const groupWidth = maxX - minX;
+      // Compute bounding box of the group
+      let minX = Infinity,
+        minZ = Infinity,
+        maxX = -Infinity,
+        maxZ = -Infinity;
+      for (const b of sourceBoxes) {
+        minX = Math.min(minX, b.position.x);
+        minZ = Math.min(minZ, b.position.z);
+        maxX = Math.max(maxX, b.position.x + b.dimensions.width);
+        maxZ = Math.max(maxZ, b.position.z + b.dimensions.depth);
+      }
+      const groupWidth = maxX - minX;
 
-    // Find non-overlapping position for the entire group
-    let offsetX = maxX + spacing - minX; // Start just to the right of the group
-    const offsetZ = 0;
+      // Find non-overlapping position for the entire group
+      let offsetX = maxX + spacing - minX; // Start just to the right of the group
+      const offsetZ = 0;
 
-    const isGroupOverlapping = (dx: number, dz: number) => {
-      for (const src of sourceBoxes) {
-        const nx = src.position.x + dx;
-        const nz = src.position.z + dz;
-        for (const b of existingBoxes) {
-          if (
-            nx < b.position.x + b.dimensions.width + spacing &&
-            b.position.x < nx + src.dimensions.width + spacing &&
-            nz < b.position.z + b.dimensions.depth + spacing &&
-            b.position.z < nz + src.dimensions.depth + spacing
-          ) {
-            return true;
+      const isGroupOverlapping = (dx: number, dz: number) => {
+        for (const src of sourceBoxes) {
+          const nx = src.position.x + dx;
+          const nz = src.position.z + dz;
+          for (const b of existingBoxes) {
+            if (
+              nx < b.position.x + b.dimensions.width + spacing &&
+              b.position.x < nx + src.dimensions.width + spacing &&
+              nz < b.position.z + b.dimensions.depth + spacing &&
+              b.position.z < nz + src.dimensions.depth + spacing
+            ) {
+              return true;
+            }
           }
         }
+        return false;
+      };
+
+      while (isGroupOverlapping(offsetX, offsetZ)) {
+        offsetX += groupWidth + spacing;
       }
-      return false;
-    };
 
-    while (isGroupOverlapping(offsetX, offsetZ)) {
-      offsetX += groupWidth + spacing;
-    }
-
-    // Map old groupIds to new groupIds so duplicated groups stay grouped
-    const groupIdMap = new Map<string, string>();
-    for (const source of sourceBoxes) {
-      if (source.groupId && !groupIdMap.has(source.groupId)) {
-        groupIdMap.set(source.groupId, uuid());
+      // Map old groupIds to new groupIds so duplicated groups stay grouped
+      const groupIdMap = new Map<string, string>();
+      for (const source of sourceBoxes) {
+        if (source.groupId && !groupIdMap.has(source.groupId)) {
+          groupIdMap.set(source.groupId, uuid());
+        }
       }
-    }
 
-    return sourceBoxes.map((source) => ({
-      ...source,
-      id: uuid(),
-      groupId: source.groupId ? groupIdMap.get(source.groupId) : undefined,
-      position: {
-        x: source.position.x + offsetX,
-        y: source.position.y,
-        z: source.position.z + offsetZ,
-      },
-      label: source.label ? `${source.label} (copy)` : undefined,
-    }));
-  }, []);
+      return sourceBoxes.map((source) => ({
+        ...source,
+        id: uuid(),
+        groupId: source.groupId ? groupIdMap.get(source.groupId) : undefined,
+        position: {
+          x: source.position.x + offsetX,
+          y: source.position.y,
+          z: source.position.z + offsetZ,
+        },
+        label: source.label ? `${source.label} (copy)` : undefined,
+      }));
+    },
+    [],
+  );
 
   const duplicateSelectedBoxes = useCallback(() => {
     const boxes = getActiveBoxes(state);
@@ -565,103 +657,126 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     if (selected.length === 0) return;
 
     const newBoxes = duplicateBoxGroup(selected, boxes);
-    dispatch({ type: 'DUPLICATE_BOXES', boxes: newBoxes });
+    dispatch({ type: "DUPLICATE_BOXES", boxes: newBoxes });
   }, [state]);
 
   const copySelectedBoxes = useCallback(() => {
     const boxes = getActiveBoxes(state);
     const selected = boxes.filter((b) => state.selectedBoxIds.includes(b.id));
     if (selected.length === 0) return;
-    dispatch({ type: 'COPY_BOXES', boxes: selected });
+    dispatch({ type: "COPY_BOXES", boxes: selected });
   }, [state]);
 
   const pasteBoxes = useCallback(() => {
     if (!state.clipboard || state.clipboard.length === 0) return;
     const boxes = getActiveBoxes(state);
     const newBoxes = duplicateBoxGroup(state.clipboard, boxes);
-    dispatch({ type: 'PASTE_BOXES', boxes: newBoxes });
+    dispatch({ type: "PASTE_BOXES", boxes: newBoxes });
   }, [state]);
 
   const deleteSelectedBoxes = useCallback(() => {
     if (state.selectedBoxIds.length === 0) return;
     const boxes = getActiveBoxes(state);
-    const selectedBoxes = boxes.filter((b) => state.selectedBoxIds.includes(b.id));
+    const selectedBoxes = boxes.filter((b) =>
+      state.selectedBoxIds.includes(b.id),
+    );
     const unlocked = selectedBoxes.filter((b) => !b.locked);
     const lockedCount = selectedBoxes.length - unlocked.length;
 
     if (unlocked.length === 0) {
-      dispatch({ type: 'SHOW_TOAST', message: `Cannot delete ${lockedCount} locked item${lockedCount > 1 ? 's' : ''}` });
+      dispatch({
+        type: "SHOW_TOAST",
+        message: `Cannot delete ${lockedCount} locked item${lockedCount > 1 ? "s" : ""}`,
+      });
       return;
     }
 
     if (lockedCount > 0) {
-      dispatch({ type: 'SHOW_TOAST', message: `${lockedCount} locked item${lockedCount > 1 ? 's' : ''} skipped` });
+      dispatch({
+        type: "SHOW_TOAST",
+        message: `${lockedCount} locked item${lockedCount > 1 ? "s" : ""} skipped`,
+      });
     }
 
-    dispatch({ type: 'DELETE_SELECTED_BOXES', ids: unlocked.map((b) => b.id) });
+    dispatch({ type: "DELETE_SELECTED_BOXES", ids: unlocked.map((b) => b.id) });
   }, [state]);
 
   const startComponentBuilder = useCallback(() => {
-    dispatch({ type: 'START_COMPONENT_BUILDER' });
+    dispatch({ type: "START_COMPONENT_BUILDER" });
   }, []);
 
-  const saveComponentAction = useCallback((name: string) => {
-    if (!state.currentTemplate) return;
-    const template: ComponentTemplate = {
-      ...state.currentTemplate,
-      name,
-      createdAt: Date.now(),
-    };
-    saveComponentToDb(template);
-    dispatch({ type: 'SAVE_COMPONENT', name });
-  }, [state.currentTemplate]);
+  const saveComponentAction = useCallback(
+    (name: string) => {
+      if (!state.currentTemplate) return;
+      const template: ComponentTemplate = {
+        ...state.currentTemplate,
+        name,
+        createdAt: Date.now(),
+      };
+      saveComponentToDb(template);
+      dispatch({ type: "SAVE_COMPONENT", name });
+    },
+    [state.currentTemplate],
+  );
 
   const cancelComponentBuilder = useCallback(() => {
-    dispatch({ type: 'CANCEL_COMPONENT_BUILDER' });
+    dispatch({ type: "CANCEL_COMPONENT_BUILDER" });
   }, []);
 
   const placeComponent = useCallback((template: ComponentTemplate) => {
-    dispatch({ type: 'PLACE_COMPONENT', template });
+    dispatch({ type: "PLACE_COMPONENT", template });
   }, []);
 
   const deleteComponentTemplate = useCallback((id: string) => {
     deleteComponentFromDb(id);
-    dispatch({ type: 'DELETE_COMPONENT', id });
+    dispatch({ type: "DELETE_COMPONENT", id });
   }, []);
 
   const toggleSnap = useCallback(() => {
-    dispatch({ type: 'TOGGLE_SNAP' });
+    dispatch({ type: "TOGGLE_SNAP" });
   }, []);
 
   const groupSelectedBoxes = useCallback(() => {
     if (state.selectedBoxIds.length < 2) return;
-    dispatch({ type: 'GROUP_BOXES', ids: state.selectedBoxIds, groupId: uuid() });
+    dispatch({
+      type: "GROUP_BOXES",
+      ids: state.selectedBoxIds,
+      groupId: uuid(),
+    });
   }, [state.selectedBoxIds]);
 
   const ungroupSelectedBoxes = useCallback(() => {
     if (state.selectedBoxIds.length === 0) return;
-    dispatch({ type: 'UNGROUP_BOXES', ids: state.selectedBoxIds });
+    dispatch({ type: "UNGROUP_BOXES", ids: state.selectedBoxIds });
   }, [state.selectedBoxIds]);
 
   const toggleLockSelectedBoxes = useCallback(() => {
     if (state.selectedBoxIds.length === 0) return;
-    dispatch({ type: 'TOGGLE_LOCK', ids: state.selectedBoxIds });
+    dispatch({ type: "TOGGLE_LOCK", ids: state.selectedBoxIds });
   }, [state.selectedBoxIds]);
 
   const showToast = useCallback((message: string) => {
-    dispatch({ type: 'SHOW_TOAST', message });
+    dispatch({ type: "SHOW_TOAST", message });
   }, []);
 
   const dismissToast = useCallback(() => {
-    dispatch({ type: 'DISMISS_TOAST' });
+    dispatch({ type: "DISMISS_TOAST" });
   }, []);
 
   const undo = useCallback(() => {
-    dispatch({ type: 'UNDO' });
+    dispatch({ type: "UNDO" });
   }, []);
 
   const redo = useCallback(() => {
-    dispatch({ type: 'REDO' });
+    dispatch({ type: "REDO" });
+  }, []);
+
+  const historyBatchStart = useCallback(() => {
+    dispatch({ type: "HISTORY_BATCH_START" });
+  }, []);
+
+  const historyBatchEnd = useCallback(() => {
+    dispatch({ type: "HISTORY_BATCH_END" });
   }, []);
 
   const canUndo = state.historyIndex > 0;
@@ -699,6 +814,8 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         redo,
         canUndo,
         canRedo,
+        historyBatchStart,
+        historyBatchEnd,
       }}
     >
       {children}
@@ -709,7 +826,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
 export function useProjectStore() {
   const context = useContext(ProjectContext);
   if (!context) {
-    throw new Error('useProjectStore must be used within a ProjectProvider');
+    throw new Error("useProjectStore must be used within a ProjectProvider");
   }
   return context;
 }

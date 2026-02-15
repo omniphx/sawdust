@@ -1,0 +1,84 @@
+{
+  "project": "OpenCAD",
+  "branchName": "ralph/fix-marquee-and-grid-alignment",
+  "description": "Fix marquee selection conflicts with box dragging, improve selection visual feedback, and align grid spacing with the active unit system",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Prevent marquee from activating on box click/drag",
+      "description": "As a user, I want to drag a box without the marquee selection rectangle appearing so that box movement works reliably.",
+      "acceptanceCriteria": [
+        "Add a shared mutable ref (e.g., `pointerCapturedByBox: React.MutableRefObject<boolean>`) to the Viewport component",
+        "Pass this ref to all Box3D components as a prop",
+        "In Box3D's `onPointerDown` handler, set `pointerCapturedByBox.current = true` synchronously before any other logic",
+        "In Box3D's `onPointerUp` handler, reset `pointerCapturedByBox.current = false`",
+        "In Viewport's `handleMarqueeMouseDown`, check `pointerCapturedByBox.current` at the start — if true, return early without initializing marquee state",
+        "Clicking and dragging on a box moves the box without any marquee rectangle appearing",
+        "Marquee rectangle only appears when clicking and dragging on empty grid space",
+        "Shift+Click on a box still toggles selection without triggering marquee",
+        "Single-click on empty space (no drag) still deselects all",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "The root cause is that Box3D uses R3F pointer events while the marquee listens on the HTML container via React mouse events — stopPropagation in one system doesn't block the other. Since pointer events fire before mouse events in the browser event loop, the shared ref flag will be set by the time the mouse handler runs. Key files: Viewport.tsx, Box3D.tsx."
+    },
+    {
+      "id": "US-002",
+      "title": "Improve selected box visual feedback",
+      "description": "As a user, I want selected boxes to be clearly visually distinct so I can immediately tell which items are selected after using marquee or Shift+Click.",
+      "acceptanceCriteria": [
+        "Update Box3D's meshLambertMaterial to add `emissive` and `emissiveIntensity` props when selected",
+        "When selected: set emissive to a blue highlight color (e.g., '#3b82f6') with emissiveIntensity of 0.15-0.25",
+        "When not selected: set emissive to '#000000' (black, no glow) with emissiveIntensity of 0",
+        "The selection highlight is clearly visible and obviously different from the unselected state",
+        "Selection visual works for all material colors including blue-ish materials",
+        "Multi-selected boxes (via marquee or Shift+Click) all show the same selection highlight",
+        "Unselected boxes return to their normal appearance immediately when deselected",
+        "Keep the existing blue edge outline (#3b82f6) for selected boxes in addition to the emissive glow",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": "meshLambertMaterial supports emissive prop which adds a glow independent of lighting. This is the simplest approach — no extra meshes or post-processing needed. Key file: Box3D.tsx."
+    },
+    {
+      "id": "US-003",
+      "title": "Make grid cell size match unit system",
+      "description": "As a user, I want the grid lines to represent whole units in my chosen system so that I can visually estimate distances and place items precisely.",
+      "acceptanceCriteria": [
+        "Update the Grid component (src/components/viewport/Grid.tsx) to accept a `unitSystem` prop",
+        "In feet mode: set cellSize to 0.3048 (1 foot) and sectionSize to 3.048 (10 feet)",
+        "In inches mode: same as feet — cellSize 0.3048 (1 foot) and sectionSize 3.048 (10 feet)",
+        "In metric mode: set cellSize to 0.01 (1 cm) and sectionSize to 0.1 (10 cm)",
+        "Pass unitSystem from Viewport (which has access to project state) to the Grid component as a prop",
+        "Grid lines visually change when the user switches unit system in the toolbar",
+        "Grid origin remains at (0,0,0) so box positions align with grid intersections",
+        "A box placed at position (0,0,0) has its bottom-left-front corner exactly on a grid line intersection",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": "The drei Grid component accepts cellSize and sectionSize as props. Changing these dynamically when the unit system changes is straightforward. The infiniteGrid mode handles alignment — grid lines extend from position [0,0,0] in multiples of cellSize. Key files: Grid.tsx, Viewport.tsx."
+    },
+    {
+      "id": "US-004",
+      "title": "Align snap increment with visible grid lines",
+      "description": "As a user, I want snapping to land on visible grid lines so that the snap behavior matches what I see.",
+      "acceptanceCriteria": [
+        "Update getSnapIncrement() in src/core/units.ts to return 0.3048 (1 foot) for both 'feet' and 'inches' unit systems",
+        "Keep getSnapIncrement() returning 0.01 (1 cm) for 'metric' unit system",
+        "Existing snap behavior (dragging boxes with snap enabled) still works correctly with new increments",
+        "Boxes snap exactly to visible grid line positions when dragged",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 4,
+      "passes": true,
+      "notes": "This is a simple change to one function in src/core/units.ts. The snap increment previously returned 0.0254 (1 inch) for both feet and inches modes, which didn't match any visible grid line. Now it matches the grid cell size exactly."
+    }
+  ]
+}
