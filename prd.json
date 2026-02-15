@@ -202,7 +202,7 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 11,
-      "passes": false,
+      "passes": true,
       "notes": "Depends on US-010. Add buttons to Toolbar.tsx using undo/redo from useProjectStore. Add keyboard event listeners in App.tsx alongside existing shortcuts."
     }
   ]

@@ -28,6 +28,7 @@
 - `history: Box[][]` and `historyIndex: number` in state — not persisted to IndexedDB, resets on page reload
 - UNDO/REDO actions restore boxes from history snapshot and clear selection
 - `SET_PROJECT` (load from DB) resets history to `[loadedBoxes]` with index 0
+- Undo/redo toolbar buttons use `canUndo`/`canRedo` from store for disabled state; keyboard shortcuts Cmd+Z and Shift+Cmd+Z in App.tsx
 
 ---
 
@@ -162,4 +163,17 @@
   - TOGGLE_LOCK uses "if any unlocked, lock all; else unlock all" pattern (same as bold/italic toggles in text editors)
   - `locked` persists to IndexedDB automatically since it's a field on the Box object
   - Lock icon positioned at `[box.dimensions.width, box.dimensions.height, 0]` to appear at the top-right corner
+---
+
+## 2026-02-14 - US-011
+- What was implemented: Undo/redo toolbar buttons with arrow icons and Cmd+Z / Shift+Cmd+Z keyboard shortcuts
+- Files changed:
+  - src/components/layout/Toolbar.tsx - Added undo/redo buttons with left/right curved arrow SVG icons, disabled styling when canUndo/canRedo is false
+  - src/App.tsx - Added Cmd+Z (undo) and Shift+Cmd+Z (redo) keyboard shortcuts with input field guard
+  - prd.json - Marked US-011 as passing
+- **Learnings for future iterations:**
+  - Undo/redo buttons placed after Add Box area, before builder/component mode buttons — they're always visible regardless of mode
+  - Shift+Cmd+Z must be checked before Cmd+Z in the if-else chain since Shift+Z also matches `e.key === 'z'`
+  - Keyboard shortcuts guard against text input focus using `tagName === 'INPUT' || tagName === 'TEXTAREA'` check (existing pattern in App.tsx)
+  - Buttons use `disabled` prop + conditional className for visual dimming when no undo/redo available
 ---

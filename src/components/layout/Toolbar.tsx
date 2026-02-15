@@ -9,7 +9,7 @@ interface ToolbarProps {
 }
 
 export function Toolbar({ onToggleComponentLibrary, showComponentLibrary }: ToolbarProps) {
-  const { state, addBox, saveComponent, cancelComponentBuilder, toggleSnap, groupSelectedBoxes, ungroupSelectedBoxes, toggleLockSelectedBoxes, getSelectedBoxes } = useProjectStore();
+  const { state, addBox, saveComponent, cancelComponentBuilder, toggleSnap, groupSelectedBoxes, ungroupSelectedBoxes, toggleLockSelectedBoxes, getSelectedBoxes, undo, redo, canUndo, canRedo } = useProjectStore();
   const { project, setUnitSystem } = useProject();
 
   const selectedBoxes = getSelectedBoxes();
@@ -88,6 +88,37 @@ export function Toolbar({ onToggleComponentLibrary, showComponentLibrary }: Tool
             ))}
           </div>
         )}
+      </div>
+
+      <div className="flex items-center gap-1">
+        <button
+          onClick={undo}
+          disabled={!canUndo}
+          className={`p-2 rounded-lg transition-colors ${
+            canUndo
+              ? 'text-slate-600 hover:bg-slate-200'
+              : 'text-slate-300 cursor-not-allowed'
+          }`}
+          title="Undo (⌘Z)"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a5 5 0 015 5v2M3 10l4-4M3 10l4 4" />
+          </svg>
+        </button>
+        <button
+          onClick={redo}
+          disabled={!canRedo}
+          className={`p-2 rounded-lg transition-colors ${
+            canRedo
+              ? 'text-slate-600 hover:bg-slate-200'
+              : 'text-slate-300 cursor-not-allowed'
+          }`}
+          title="Redo (⇧⌘Z)"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 10H11a5 5 0 00-5 5v2M21 10l-4-4M21 10l-4 4" />
+          </svg>
+        </button>
       </div>
 
       {isBuilderMode ? (

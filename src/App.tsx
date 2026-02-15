@@ -8,7 +8,7 @@ import { ComponentLibraryPanel } from './components/layout/ComponentLibraryPanel
 import { Toast } from './components/ui/Toast';
 
 function AppContent() {
-  const { state, copySelectedBoxes, pasteBoxes, duplicateSelectedBoxes, deleteSelectedBoxes, dismissToast } = useProjectStore();
+  const { state, copySelectedBoxes, pasteBoxes, duplicateSelectedBoxes, deleteSelectedBoxes, dismissToast, undo, redo, canUndo, canRedo } = useProjectStore();
   const [showComponentLibrary, setShowComponentLibrary] = useState(false);
 
   useEffect(() => {
@@ -18,7 +18,13 @@ function AppContent() {
       if (tag === 'INPUT' || tag === 'TEXTAREA') return;
 
       if (e.metaKey || e.ctrlKey) {
-        if (e.key === 'c' && state.selectedBoxIds.length > 0) {
+        if (e.key === 'z' && e.shiftKey) {
+          e.preventDefault();
+          if (canRedo) redo();
+        } else if (e.key === 'z') {
+          e.preventDefault();
+          if (canUndo) undo();
+        } else if (e.key === 'c' && state.selectedBoxIds.length > 0) {
           e.preventDefault();
           copySelectedBoxes();
         } else if (e.key === 'v' && state.clipboard && state.clipboard.length > 0) {
@@ -37,7 +43,7 @@ function AppContent() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [state.selectedBoxIds, state.clipboard, copySelectedBoxes, pasteBoxes, duplicateSelectedBoxes, deleteSelectedBoxes]);
+  }, [state.selectedBoxIds, state.clipboard, copySelectedBoxes, pasteBoxes, duplicateSelectedBoxes, deleteSelectedBoxes, undo, redo, canUndo, canRedo]);
 
   const isBuilderMode = state.mode === 'component-builder';
 
