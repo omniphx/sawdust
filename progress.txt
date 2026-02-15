@@ -40,3 +40,13 @@
   - `getSnapIncrement` and `snapToGrid` work together — the increment feeds into `snapToGrid` which rounds to the nearest multiple
   - The fix was a simple conditional branch addition; feet/inches were previously sharing the same return value
 ---
+
+## 2026-02-15 - US-002
+- Implemented: Removed auto-stacking from single-box drag in Box3D.tsx
+- Removed the `stackY` calculation loop (lines 179-192) that checked for XZ overlap with other boxes and computed stacking Y
+- Now uses `box.position.y` (pre-drag Y position) instead of computed `stackY`
+- Files changed: `src/components/viewport/Box3D.tsx`
+- **Learnings for future iterations:**
+  - Auto-stacking logic exists in two places in Box3D: single-box drag (~line 177) and multi-box drag (~line 142). US-003 will handle the multi-box version.
+  - The drag handler uses `box.position.y` which reflects the current position since React re-renders during drag with updated props
+---

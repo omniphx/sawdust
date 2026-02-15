@@ -175,23 +175,8 @@ export function Box3D({ box, allBoxes, isSelected, selectedBoxIds, onToggleSelec
 
       onMoveSelected(updates);
     } else {
-      // Single box drag — original behavior
-      let stackY = 0;
-      for (const other of allBoxes) {
-        if (other.id === box.id) continue;
-        const overlapX =
-          newX < other.position.x + other.dimensions.width &&
-          other.position.x < newX + box.dimensions.width;
-        const overlapZ =
-          newZ < other.position.z + other.dimensions.depth &&
-          other.position.z < newZ + box.dimensions.depth;
-        if (overlapX && overlapZ) {
-          const otherTop = other.position.y + other.dimensions.height;
-          if (otherTop > stackY) stackY = otherTop;
-        }
-      }
-
-      onMove(box.id, { x: newX, y: stackY, z: newZ });
+      // Single box drag — keep Y at pre-drag position
+      onMove(box.id, { x: newX, y: box.position.y, z: newZ });
     }
   };
 
