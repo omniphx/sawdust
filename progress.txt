@@ -87,3 +87,14 @@
   - The batch system specifically targets UPDATE_BOX suppression — other box-mutating actions still record history during a batch
   - HISTORY_BATCH_END replaces the history entry at current index with the anchor snapshot and pushes current state — this assumes no non-UPDATE_BOX mutations occurred during the batch
 ---
+
+## 2026-02-14 - US-007
+- Implemented: Added batch start/end calls to Box3D drag lifecycle
+- `onHistoryBatchStart()` called in `handlePointerDown` before `setIsDragging(true)`
+- `onHistoryBatchEnd()` called in `handlePointerUp` when `isDragging` is true
+- Props threaded through from Viewport.tsx which destructures `historyBatchStart`/`historyBatchEnd` from store
+- Files changed: `src/components/viewport/Box3D.tsx`, `src/components/viewport/Viewport.tsx`
+- **Learnings for future iterations:**
+  - Batch end must only fire when `isDragging` is true — pointer up fires even when no drag started (e.g., locked box click returns early before setIsDragging)
+  - For click-without-drag on non-locked boxes: batch start fires, no UPDATE_BOX calls, batch end sees no changes → no-op
+---

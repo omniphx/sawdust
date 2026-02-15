@@ -27,9 +27,11 @@ interface Box3DProps {
   snap: (v: number) => number;
   onShowToast: (message: string) => void;
   pointerCapturedByBox: React.MutableRefObject<boolean>;
+  onHistoryBatchStart: () => void;
+  onHistoryBatchEnd: () => void;
 }
 
-export function Box3D({ box, allBoxes, isSelected, selectedBoxIds, onToggleSelect, onSelectGroup, onToggleSelectGroup, onMove, onMoveSelected, snap, onShowToast, pointerCapturedByBox }: Box3DProps) {
+export function Box3D({ box, allBoxes, isSelected, selectedBoxIds, onToggleSelect, onSelectGroup, onToggleSelectGroup, onMove, onMoveSelected, snap, onShowToast, pointerCapturedByBox, onHistoryBatchStart, onHistoryBatchEnd }: Box3DProps) {
   const meshRef = useRef<Mesh>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState(new Vector3());
@@ -116,6 +118,7 @@ export function Box3D({ box, allBoxes, isSelected, selectedBoxIds, onToggleSelec
     }
     dragStartPositions.current = positions;
 
+    onHistoryBatchStart();
     setIsDragging(true);
     (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
   };
@@ -167,6 +170,9 @@ export function Box3D({ box, allBoxes, isSelected, selectedBoxIds, onToggleSelec
     // replace the selection with just this group (or single box)
     if (!didDrag.current && wasMultiSelected.current && !pointerDownShift.current) {
       onSelectGroup(groupMemberIds);
+    }
+    if (isDragging) {
+      onHistoryBatchEnd();
     }
     setIsDragging(false);
   };

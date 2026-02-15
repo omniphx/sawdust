@@ -62,3 +62,18 @@
 **Verification:**
 1. `npm run build` passes (TypeScript check + production build)
 2. Code review confirms all acceptance criteria are met in the existing implementation
+
+## US-007: Batch drag operations in Box3D
+
+**Date:** 2026-02-14
+
+**Change:** Added `onHistoryBatchStart` and `onHistoryBatchEnd` props to Box3D, called at drag start and end respectively, so that all UPDATE_BOX dispatches during a drag are collapsed into a single undo step.
+
+**Code Changes:**
+- `src/components/viewport/Box3D.tsx`: Added `onHistoryBatchStart`/`onHistoryBatchEnd` to props interface and component destructuring; call `onHistoryBatchStart()` before `setIsDragging(true)` in `handlePointerDown`; call `onHistoryBatchEnd()` in `handlePointerUp` when `isDragging` is true
+- `src/components/viewport/Viewport.tsx`: Destructured `historyBatchStart`/`historyBatchEnd` from store; passed them as props to Box3D
+
+**Verification:**
+1. `npm run build` passes (TypeScript check + production build)
+2. Browser verification: App loads correctly (screenshot: `us007-app-loaded.png`)
+3. Note: R3F pointer events don't work in headless Chrome, so drag undo testing not possible via Playwright
