@@ -109,3 +109,14 @@
   - DimensionInput uses controlled input with local state (`inputValue`) and only calls parent `onChange` on blur — this naturally prevents multiple history entries per value change
   - Undo clears selection (`selectedBoxIds: []`), so after undo the properties panel hides. This is expected behavior.
 ---
+
+## 2026-02-14 - US-009
+- Implemented: Modified `handlePointerDown` in Box3D.tsx to include all group members in drag set
+- Created `allDragIds` Set merging `activeSelectedIds` with `groupMemberIds` when box has a `groupId`
+- Locked boxes in the group are excluded (existing `!b.locked` check)
+- Snap-to-grid applies to the dragged box; other group members follow via delta computation in `handlePointerMove`
+- Files changed: `src/components/viewport/Box3D.tsx`
+- **Learnings for future iterations:**
+  - The multi-drag system already handles moving multiple boxes via delta from the dragged box's start position — adding group members to `dragStartPositions` is all that's needed
+  - `groupMemberIds` is already computed at the component level from `allBoxes` with same `groupId`
+---

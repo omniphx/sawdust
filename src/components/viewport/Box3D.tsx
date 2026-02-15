@@ -105,14 +105,21 @@ export function Box3D({ box, allBoxes, isSelected, selectedBoxIds, onToggleSelec
     wasMultiSelected.current = isSelected && selectedBoxIds.length > 1;
     pointerDownShift.current = e.shiftKey;
 
-    // Record initial positions of all selected boxes for multi-drag
+    // Record initial positions of all boxes that should move together
     // Exclude locked boxes — they stay put
     const positions = new Map<string, { x: number; y: number; z: number }>();
     const activeSelectedIds = isSelected || !e.shiftKey
       ? (isSelected ? selectedBoxIds : [box.id])
       : selectedBoxIds;
+    // Merge selected IDs with group member IDs so entire group moves together
+    const allDragIds = new Set(activeSelectedIds);
+    if (box.groupId) {
+      for (const id of groupMemberIds) {
+        allDragIds.add(id);
+      }
+    }
     for (const b of allBoxes) {
-      if (activeSelectedIds.includes(b.id) && !b.locked) {
+      if (allDragIds.has(b.id) && !b.locked) {
         positions.set(b.id, { ...b.position });
       }
     }

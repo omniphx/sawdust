@@ -93,3 +93,17 @@
    - Pressed Cmd+Shift+Z → Width restored to 2.00 (redo works)
    - Changed X position from 0.00 to 3.00, pressed Tab to blur
    - Pressed Cmd+Z → X position reverted to 0.00 in one press
+
+## US-009: Drag grouped box moves entire group
+
+**Date:** 2026-02-14
+
+**Change:** Modified `handlePointerDown` in Box3D.tsx to include all group members in `dragStartPositions`, not just selected boxes. When a grouped box starts a drag, all boxes with the same `groupId` are merged into the drag set. Locked boxes within the group are excluded from movement.
+
+**Code Changes:**
+- `src/components/viewport/Box3D.tsx`: Added `allDragIds` Set that merges `activeSelectedIds` with `groupMemberIds` when the dragged box has a `groupId`. Used `allDragIds` instead of `activeSelectedIds` when populating `dragStartPositions`.
+
+**Verification:**
+1. `npm run build` passes (TypeScript check + production build)
+2. Browser verification: App loads correctly
+3. Note: R3F drag interactions can't be tested in headless Chrome
