@@ -373,31 +373,55 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     return boxes.filter((box) => idSet.has(box.id));
   }, [state]);
 
-  const findNonOverlappingPosition = useCallback((sourceBox: Box, boxes: Box[]) => {
+  const duplicateBoxGroup = useCallback((sourceBoxes: Box[], existingBoxes: Box[]) => {
     const spacing = 0.25;
-    let posX = sourceBox.position.x + sourceBox.dimensions.width + spacing;
-    const posZ = sourceBox.position.z;
-    const dim = sourceBox.dimensions;
 
-    const isOverlapping = (x: number, z: number) => {
-      for (const b of boxes) {
-        if (
-          x < b.position.x + b.dimensions.width + spacing &&
-          b.position.x < x + dim.width + spacing &&
-          z < b.position.z + b.dimensions.depth + spacing &&
-          b.position.z < z + dim.depth + spacing
-        ) {
-          return true;
+    // Compute bounding box of the group
+    let minX = Infinity, minZ = Infinity, maxX = -Infinity, maxZ = -Infinity;
+    for (const b of sourceBoxes) {
+      minX = Math.min(minX, b.position.x);
+      minZ = Math.min(minZ, b.position.z);
+      maxX = Math.max(maxX, b.position.x + b.dimensions.width);
+      maxZ = Math.max(maxZ, b.position.z + b.dimensions.depth);
+    }
+    const groupWidth = maxX - minX;
+
+    // Find non-overlapping position for the entire group
+    let offsetX = maxX + spacing - minX; // Start just to the right of the group
+    const offsetZ = 0;
+
+    const isGroupOverlapping = (dx: number, dz: number) => {
+      for (const src of sourceBoxes) {
+        const nx = src.position.x + dx;
+        const nz = src.position.z + dz;
+        for (const b of existingBoxes) {
+          if (
+            nx < b.position.x + b.dimensions.width + spacing &&
+            b.position.x < nx + src.dimensions.width + spacing &&
+            nz < b.position.z + b.dimensions.depth + spacing &&
+            b.position.z < nz + src.dimensions.depth + spacing
+          ) {
+            return true;
+          }
         }
       }
       return false;
     };
 
-    while (isOverlapping(posX, posZ)) {
-      posX += dim.width + spacing;
+    while (isGroupOverlapping(offsetX, offsetZ)) {
+      offsetX += groupWidth + spacing;
     }
 
-    return { x: posX, y: sourceBox.position.y, z: posZ };
+    return sourceBoxes.map((source) => ({
+      ...source,
+      id: uuid(),
+      position: {
+        x: source.position.x + offsetX,
+        y: source.position.y,
+        z: source.position.z + offsetZ,
+      },
+      label: source.label ? `${source.label} (copy)` : undefined,
+    }));
   }, []);
 
   const duplicateSelectedBoxes = useCallback(() => {
@@ -405,14 +429,9 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     const selected = boxes.filter((b) => state.selectedBoxIds.includes(b.id));
     if (selected.length === 0) return;
 
-    const newBoxes = selected.map((source) => ({
-      ...source,
-      id: uuid(),
-      position: findNonOverlappingPosition(source, boxes),
-      label: source.label ? `${source.label} (copy)` : undefined,
-    }));
+    const newBoxes = duplicateBoxGroup(selected, boxes);
     dispatch({ type: 'DUPLICATE_BOXES', boxes: newBoxes });
-  }, [state, findNonOverlappingPosition]);
+  }, [state]);
 
   const copySelectedBoxes = useCallback(() => {
     const boxes = getActiveBoxes(state);
@@ -424,14 +443,9 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   const pasteBoxes = useCallback(() => {
     if (!state.clipboard || state.clipboard.length === 0) return;
     const boxes = getActiveBoxes(state);
-    const newBoxes = state.clipboard.map((source) => ({
-      ...source,
-      id: uuid(),
-      position: findNonOverlappingPosition(source, boxes),
-      label: source.label ? `${source.label} (copy)` : undefined,
-    }));
+    const newBoxes = duplicateBoxGroup(state.clipboard, boxes);
     dispatch({ type: 'PASTE_BOXES', boxes: newBoxes });
-  }, [state, findNonOverlappingPosition]);
+  }, [state]);
 
   const deleteSelectedBoxes = useCallback(() => {
     if (state.selectedBoxIds.length === 0) return;

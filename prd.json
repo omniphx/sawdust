@@ -73,7 +73,7 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "notes": "Depends on US-001. In Box3D, on drag start record initial positions of ALL selected boxes. On each move event compute delta from dragged box start position and apply to all selected boxes via batch updateBox calls."
     },
     {
@@ -92,7 +92,7 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "notes": "Depends on US-001. Update App.tsx keyboard handlers and projectStore actions. Change clipboard from `Box | null` to `Box[] | null`. Delete and duplicate iterate over selectedBoxIds."
     },
     {

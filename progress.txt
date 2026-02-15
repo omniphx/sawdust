@@ -7,9 +7,35 @@
 - `getActiveBoxes(state)` returns boxes from either project or component-builder mode
 - `setActiveBoxes(state, boxes)` sets boxes in the correct mode context
 - Box position is corner-based (bottom-left-front), not center-based
-- `findNonOverlappingPosition` used for duplicate/paste positioning
+- `duplicateBoxGroup(sourceBoxes, existingBoxes)` duplicates/pastes a group preserving relative positions; finds non-overlapping placement for the entire group
 - ESLint config is not set up (v9 migration needed), so `npm run lint` fails — use `npm run build` for quality checks (includes tsc)
+- Multi-drag uses `dragStartPositions` ref to record initial positions of all selected boxes on pointer down; delta is computed from dragged box's start pos
+- When clicking an already-selected box in a multi-selection: don't replace selection on pointer down (to allow drag); replace on pointer up if no drag occurred
+- Auto-stacking during multi-drag excludes other dragged boxes from collision checks
 
+---
+
+## 2026-02-14 - US-005
+- What was implemented: Multi-select delete and duplicate with relative position preservation
+- Files changed:
+  - src/store/projectStore.tsx - Replaced `findNonOverlappingPosition` (per-box) with `duplicateBoxGroup` (group-aware) for duplicate and paste operations. Group bounding box is computed, then the entire group is shifted as a unit to a non-overlapping position.
+- **Learnings for future iterations:**
+  - `duplicateBoxGroup` computes the bounding box of the source group, then slides the entire group along X to find a clear spot
+  - Overlap checking tests every source box (at its offset position) against every existing box
+  - Delete and copy already worked correctly for multi-select from US-001 — only duplicate/paste needed fixing for relative position preservation
+---
+
+## 2026-02-14 - US-004
+- What was implemented: Multi-select move — dragging one selected box moves all selected boxes by the same XZ delta
+- Files changed:
+  - src/components/viewport/Box3D.tsx - Added `selectedBoxIds` and `onMoveSelected` props, multi-drag logic with start position tracking, click-vs-drag detection for multi-selection
+  - src/components/viewport/Viewport.tsx - Added `handleMoveSelected` batch update handler, passes new props to Box3D
+- **Learnings for future iterations:**
+  - `dragStartPositions` ref stores initial positions of all selected boxes at pointer down
+  - Delta is computed from the dragged box's snapped position vs its start position, then applied uniformly to all selected boxes
+  - `didDrag` / `wasMultiSelected` / `pointerDownShift` refs used to distinguish click-to-select from drag-to-move
+  - Auto-stacking excludes boxes in the dragged set (uses `draggedIds` Set) so dragged boxes don't stack on each other
+  - On pointer down: if box is already selected in a multi-selection, selection is NOT replaced (to allow drag). On pointer up without drag, selection IS replaced to preserve standard click behavior
 ---
 
 ## 2026-02-14 - US-003
