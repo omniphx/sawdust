@@ -7,6 +7,7 @@ export interface Box {
   label?: string;
   groupId?: string;
   locked?: boolean;
+  hidden?: boolean;
 }
 
 export type UnitType = 'board_feet' | 'square_feet' | 'cubic_feet' | 'linear_feet' | 'count';

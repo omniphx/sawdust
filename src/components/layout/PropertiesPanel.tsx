@@ -8,7 +8,7 @@ import { getMaterialById } from '../../core/materials';
 
 export function PropertiesPanel() {
   const { selectedBox, selectedBoxIds, updateBox, deleteBox } = useSelection();
-  const { duplicateSelectedBoxes, deleteSelectedBoxes, toggleLockSelectedBoxes, getSelectedBoxes, createComponentFromSelected, historyBatchStart, historyBatchEnd } = useProjectStore();
+  const { duplicateSelectedBoxes, deleteSelectedBoxes, toggleLockSelectedBoxes, toggleVisibilitySelectedBoxes, getSelectedBoxes, createComponentFromSelected, historyBatchStart, historyBatchEnd } = useProjectStore();
   const { project } = useProject();
   const [showSaveComponent, setShowSaveComponent] = useState(false);
   const [componentName, setComponentName] = useState('');
@@ -21,6 +21,7 @@ export function PropertiesPanel() {
   if (selectedBoxIds.length > 1) {
     const selectedBoxesArr = getSelectedBoxes();
     const allLocked = selectedBoxesArr.every((b) => b.locked);
+    const allHidden = selectedBoxesArr.every((b) => b.hidden);
     return (
       <div className="w-72 bg-white border-l border-slate-200 p-4 overflow-y-auto">
         <h2 className="text-slate-800 font-semibold mb-4">Properties</h2>
@@ -33,6 +34,12 @@ export function PropertiesPanel() {
             className="w-full px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-lg shadow-sm transition-colors"
           >
             {allLocked ? 'Unlock All' : 'Lock All'}
+          </button>
+          <button
+            onClick={() => toggleVisibilitySelectedBoxes()}
+            className="w-full px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-medium rounded-lg shadow-sm transition-colors"
+          >
+            {allHidden ? 'Show All' : 'Hide All'}
           </button>
           <button
             onClick={() => duplicateSelectedBoxes()}
@@ -301,6 +308,12 @@ export function PropertiesPanel() {
             className="w-full px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-lg shadow-sm transition-colors"
           >
             {selectedBox.locked ? 'Unlock' : 'Lock'}
+          </button>
+          <button
+            onClick={() => toggleVisibilitySelectedBoxes()}
+            className="w-full px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-medium rounded-lg shadow-sm transition-colors"
+          >
+            {selectedBox.hidden ? 'Show' : 'Hide'}
           </button>
           <button
             onClick={() => duplicateSelectedBoxes()}

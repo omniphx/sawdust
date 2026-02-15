@@ -59,6 +59,7 @@ type ProjectAction =
   | { type: "GROUP_BOXES"; ids: string[]; groupId: string }
   | { type: "UNGROUP_BOXES"; ids: string[] }
   | { type: "TOGGLE_LOCK"; ids: string[] }
+  | { type: "TOGGLE_VISIBILITY"; ids: string[] }
   | { type: "SHOW_TOAST"; message: string }
   | { type: "DISMISS_TOAST" }
   | { type: "UNDO" }
@@ -285,6 +286,16 @@ function projectReducer(
       return setActiveBoxes(state, boxes);
     }
 
+    case "TOGGLE_VISIBILITY": {
+      const idSet = new Set(action.ids);
+      const targetBoxes = getActiveBoxes(state).filter((b) => idSet.has(b.id));
+      const allHidden = targetBoxes.every((b) => b.hidden);
+      const boxes = getActiveBoxes(state).map((box) =>
+        idSet.has(box.id) ? { ...box, hidden: !allHidden } : box,
+      );
+      return setActiveBoxes(state, boxes);
+    }
+
     case "SHOW_TOAST":
       return { ...state, toastMessage: action.message };
 
@@ -380,6 +391,7 @@ const BOX_MUTATING_ACTIONS = new Set<ProjectAction["type"]>([
   "GROUP_BOXES",
   "UNGROUP_BOXES",
   "TOGGLE_LOCK",
+  "TOGGLE_VISIBILITY",
   "PLACE_COMPONENT",
 ]);
 
@@ -454,6 +466,7 @@ interface ProjectContextValue {
   groupSelectedBoxes: () => void;
   ungroupSelectedBoxes: () => void;
   toggleLockSelectedBoxes: () => void;
+  toggleVisibilitySelectedBoxes: () => void;
   showToast: (message: string) => void;
   dismissToast: () => void;
   undo: () => void;
@@ -816,6 +829,11 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     dispatch({ type: "TOGGLE_LOCK", ids: state.selectedBoxIds });
   }, [state.selectedBoxIds]);
 
+  const toggleVisibilitySelectedBoxes = useCallback(() => {
+    if (state.selectedBoxIds.length === 0) return;
+    dispatch({ type: "TOGGLE_VISIBILITY", ids: state.selectedBoxIds });
+  }, [state.selectedBoxIds]);
+
   const showToast = useCallback((message: string) => {
     dispatch({ type: "SHOW_TOAST", message });
   }, []);
@@ -871,6 +889,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         groupSelectedBoxes,
         ungroupSelectedBoxes,
         toggleLockSelectedBoxes,
+        toggleVisibilitySelectedBoxes,
         showToast,
         dismissToast,
         undo,
