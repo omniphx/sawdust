@@ -65,7 +65,8 @@ export function calculateBoardFeet(widthM: number, heightM: number, depthM: numb
 /** Snap increment in meters for each unit system */
 export function getSnapIncrement(unitSystem: UnitSystem): number {
   if (unitSystem === 'metric') return 0.01;  // 1 cm
-  return 0.3048;  // 1 foot (for both feet and inches, matches grid cell size)
+  if (unitSystem === 'inches') return 0.0254;  // 1 inch
+  return 0.3048;  // 1 foot
 }
 
 /** Snap a value in meters to the nearest grid increment */
