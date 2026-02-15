@@ -28,6 +28,7 @@ interface ProjectState {
   componentLibrary: ComponentTemplate[];
   clipboard: Box[] | null;
   snapEnabled: boolean;
+  toastMessage: string | null;
 }
 
 type ProjectAction =
@@ -53,7 +54,9 @@ type ProjectAction =
   | { type: 'TOGGLE_SNAP' }
   | { type: 'GROUP_BOXES'; ids: string[]; groupId: string }
   | { type: 'UNGROUP_BOXES'; ids: string[] }
-  | { type: 'TOGGLE_LOCK'; ids: string[] };
+  | { type: 'TOGGLE_LOCK'; ids: string[] }
+  | { type: 'SHOW_TOAST'; message: string }
+  | { type: 'DISMISS_TOAST' };
 
 function createDefaultProject(): Project {
   return {
@@ -234,6 +237,12 @@ function projectReducer(state: ProjectState, action: ProjectAction): ProjectStat
       return setActiveBoxes(state, boxes);
     }
 
+    case 'SHOW_TOAST':
+      return { ...state, toastMessage: action.message };
+
+    case 'DISMISS_TOAST':
+      return { ...state, toastMessage: null };
+
     case 'COPY_BOXES':
       return { ...state, clipboard: action.boxes };
 
@@ -273,6 +282,8 @@ interface ProjectContextValue {
   groupSelectedBoxes: () => void;
   ungroupSelectedBoxes: () => void;
   toggleLockSelectedBoxes: () => void;
+  showToast: (message: string) => void;
+  dismissToast: () => void;
 }
 
 const ProjectContext = createContext<ProjectContextValue | null>(null);
@@ -287,6 +298,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     componentLibrary: [],
     clipboard: null,
     snapEnabled: true,
+    toastMessage: null,
   });
 
   // Load project and components from IndexedDB on mount
@@ -491,8 +503,22 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
 
   const deleteSelectedBoxes = useCallback(() => {
     if (state.selectedBoxIds.length === 0) return;
-    dispatch({ type: 'DELETE_SELECTED_BOXES', ids: state.selectedBoxIds });
-  }, [state.selectedBoxIds]);
+    const boxes = getActiveBoxes(state);
+    const selectedBoxes = boxes.filter((b) => state.selectedBoxIds.includes(b.id));
+    const unlocked = selectedBoxes.filter((b) => !b.locked);
+    const lockedCount = selectedBoxes.length - unlocked.length;
+
+    if (unlocked.length === 0) {
+      dispatch({ type: 'SHOW_TOAST', message: `Cannot delete ${lockedCount} locked item${lockedCount > 1 ? 's' : ''}` });
+      return;
+    }
+
+    if (lockedCount > 0) {
+      dispatch({ type: 'SHOW_TOAST', message: `${lockedCount} locked item${lockedCount > 1 ? 's' : ''} skipped` });
+    }
+
+    dispatch({ type: 'DELETE_SELECTED_BOXES', ids: unlocked.map((b) => b.id) });
+  }, [state]);
 
   const startComponentBuilder = useCallback(() => {
     dispatch({ type: 'START_COMPONENT_BUILDER' });
@@ -541,6 +567,14 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'TOGGLE_LOCK', ids: state.selectedBoxIds });
   }, [state.selectedBoxIds]);
 
+  const showToast = useCallback((message: string) => {
+    dispatch({ type: 'SHOW_TOAST', message });
+  }, []);
+
+  const dismissToast = useCallback(() => {
+    dispatch({ type: 'DISMISS_TOAST' });
+  }, []);
+
   return (
     <ProjectContext.Provider
       value={{
@@ -567,6 +601,8 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         groupSelectedBoxes,
         ungroupSelectedBoxes,
         toggleLockSelectedBoxes,
+        showToast,
+        dismissToast,
       }}
     >
       {children}

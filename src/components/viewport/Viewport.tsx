@@ -96,7 +96,7 @@ function TrackpadHandler({ controlsRef }: { controlsRef: React.RefObject<OrbitCo
 }
 
 export function Viewport() {
-  const { state, selectBoxes, toggleBoxSelection, updateBox } = useProjectStore();
+  const { state, selectBoxes, toggleBoxSelection, updateBox, showToast } = useProjectStore();
   const controlsRef = useRef<OrbitControlsImpl>(null);
   const cameraRef = useRef<OrthographicCamera | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -282,6 +282,7 @@ export function Viewport() {
             onMove={handleMove}
             onMoveSelected={handleMoveSelected}
             snap={snap}
+            onShowToast={showToast}
           />
         ))}
       </Canvas>

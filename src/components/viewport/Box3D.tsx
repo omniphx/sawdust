@@ -25,9 +25,10 @@ interface Box3DProps {
   onMove: (id: string, position: { x: number; y: number; z: number }) => void;
   onMoveSelected: (updates: Array<{ id: string; position: { x: number; y: number; z: number } }>) => void;
   snap: (v: number) => number;
+  onShowToast: (message: string) => void;
 }
 
-export function Box3D({ box, allBoxes, isSelected, selectedBoxIds, onToggleSelect, onSelectGroup, onToggleSelectGroup, onMove, onMoveSelected, snap }: Box3DProps) {
+export function Box3D({ box, allBoxes, isSelected, selectedBoxIds, onToggleSelect, onSelectGroup, onToggleSelectGroup, onMove, onMoveSelected, snap, onShowToast }: Box3DProps) {
   const meshRef = useRef<Mesh>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState(new Vector3());
@@ -67,6 +68,15 @@ export function Box3D({ box, allBoxes, isSelected, selectedBoxIds, onToggleSelec
       onSelectGroup(groupMemberIds);
     }
 
+    // If this box is locked, show warning and don't start drag
+    if (box.locked) {
+      onShowToast('Cannot move locked item');
+      didDrag.current = false;
+      wasMultiSelected.current = isSelected && selectedBoxIds.length > 1;
+      pointerDownShift.current = e.shiftKey;
+      return;
+    }
+
     // Lock drag plane to current Y so stacking doesn't shift the plane
     dragPlaneY.current = box.position.y;
 
@@ -92,12 +102,13 @@ export function Box3D({ box, allBoxes, isSelected, selectedBoxIds, onToggleSelec
     pointerDownShift.current = e.shiftKey;
 
     // Record initial positions of all selected boxes for multi-drag
+    // Exclude locked boxes — they stay put
     const positions = new Map<string, { x: number; y: number; z: number }>();
     const activeSelectedIds = isSelected || !e.shiftKey
       ? (isSelected ? selectedBoxIds : [box.id])
       : selectedBoxIds;
     for (const b of allBoxes) {
-      if (activeSelectedIds.includes(b.id)) {
+      if (activeSelectedIds.includes(b.id) && !b.locked) {
         positions.set(b.id, { ...b.position });
       }
     }

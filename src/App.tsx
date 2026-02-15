@@ -5,9 +5,10 @@ import { Viewport } from './components/viewport/Viewport';
 import { PropertiesPanel } from './components/layout/PropertiesPanel';
 import { BOMPanel } from './components/layout/BOMPanel';
 import { ComponentLibraryPanel } from './components/layout/ComponentLibraryPanel';
+import { Toast } from './components/ui/Toast';
 
 function AppContent() {
-  const { state, copySelectedBoxes, pasteBoxes, duplicateSelectedBoxes, deleteSelectedBoxes } = useProjectStore();
+  const { state, copySelectedBoxes, pasteBoxes, duplicateSelectedBoxes, deleteSelectedBoxes, dismissToast } = useProjectStore();
   const [showComponentLibrary, setShowComponentLibrary] = useState(false);
 
   useEffect(() => {
@@ -54,6 +55,7 @@ function AppContent() {
           {!isBuilderMode && <BOMPanel />}
         </div>
       </div>
+      <Toast message={state.toastMessage} onDismiss={dismissToast} />
     </div>
   );
 }
