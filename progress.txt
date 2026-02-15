@@ -139,3 +139,11 @@
 - Store functions `groupSelectedBoxes`/`ungroupSelectedBoxes` already guard against invalid state (< 2 selected for group, 0 selected for ungroup)
 - Files changed: `src/App.tsx`
 ---
+
+## 2026-02-14 - US-012
+- Verified: All undoable actions work correctly after batch history changes
+- `BOX_MUTATING_ACTIONS` includes: ADD_BOX, DELETE_BOX, UPDATE_BOX, DUPLICATE_BOXES, PASTE_BOXES, DELETE_SELECTED_BOXES, GROUP_BOXES, UNGROUP_BOXES, TOGGLE_LOCK, PLACE_COMPONENT
+- Browser tested: add box → undo removes it → redo restores it
+- Code review confirms all actions create single history entries
+- Files changed: none; only `prd.json` updated
+---

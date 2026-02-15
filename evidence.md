@@ -133,3 +133,17 @@
 **Verification:**
 1. `npm run build` passes (TypeScript check + production build)
 2. Shortcuts guard: `groupSelectedBoxes` requires 2+ selected (built into store), `ungroupSelectedBoxes` requires 1+ selected (built into store)
+
+## US-012: Verify all undoable actions still work
+
+**Date:** 2026-02-14
+
+**Change:** Verified that all box-mutating actions are tracked in `BOX_MUTATING_ACTIONS` and create proper history entries for undo/redo.
+
+**Verification:**
+1. `npm run build` passes (TypeScript check + production build)
+2. Browser test: Added a box, pressed Cmd+Z → box removed; pressed Cmd+Shift+Z → box restored
+3. Code review: All required actions (`ADD_BOX`, `DELETE_BOX`, `DUPLICATE_BOXES`, `GROUP_BOXES`, `UNGROUP_BOXES`, `TOGGLE_LOCK`) are in `BOX_MUTATING_ACTIONS` set
+4. Each creates exactly one history snapshot via `projectReducerWithHistory`
+5. UNDO restores `history[index-1]`, REDO restores `history[index+1]` — both work correctly
+6. Batch system only suppresses `UPDATE_BOX` during active batches; all other actions create history entries immediately
