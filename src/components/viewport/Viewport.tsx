@@ -103,6 +103,7 @@ export function Viewport() {
   const [marquee, setMarquee] = useState<MarqueeRect | null>(null);
   const marqueeActive = useRef(false);
   const shiftHeld = useRef(false);
+  const pointerCapturedByBox = useRef(false);
 
   const activeBoxes = state.mode === 'component-builder'
     ? (state.currentTemplate?.boxes ?? [])
@@ -133,6 +134,8 @@ export function Viewport() {
   const handleMarqueeMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     // Only start marquee on left click, and only on the container itself (not on UI overlays)
     if (e.button !== 0) return;
+    // If a box captured the pointer (R3F event fired first), skip marquee
+    if (pointerCapturedByBox.current) return;
     const container = containerRef.current;
     if (!container) return;
 
@@ -283,6 +286,7 @@ export function Viewport() {
             onMoveSelected={handleMoveSelected}
             snap={snap}
             onShowToast={showToast}
+            pointerCapturedByBox={pointerCapturedByBox}
           />
         ))}
       </Canvas>

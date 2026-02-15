@@ -26,9 +26,10 @@ interface Box3DProps {
   onMoveSelected: (updates: Array<{ id: string; position: { x: number; y: number; z: number } }>) => void;
   snap: (v: number) => number;
   onShowToast: (message: string) => void;
+  pointerCapturedByBox: React.MutableRefObject<boolean>;
 }
 
-export function Box3D({ box, allBoxes, isSelected, selectedBoxIds, onToggleSelect, onSelectGroup, onToggleSelectGroup, onMove, onMoveSelected, snap, onShowToast }: Box3DProps) {
+export function Box3D({ box, allBoxes, isSelected, selectedBoxIds, onToggleSelect, onSelectGroup, onToggleSelectGroup, onMove, onMoveSelected, snap, onShowToast, pointerCapturedByBox }: Box3DProps) {
   const meshRef = useRef<Mesh>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState(new Vector3());
@@ -56,6 +57,7 @@ export function Box3D({ box, allBoxes, isSelected, selectedBoxIds, onToggleSelec
 
   const handlePointerDown = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation();
+    pointerCapturedByBox.current = true;
     if (e.shiftKey) {
       // Toggle entire group in/out of selection
       if (box.groupId) {
@@ -194,6 +196,7 @@ export function Box3D({ box, allBoxes, isSelected, selectedBoxIds, onToggleSelec
   };
 
   const handlePointerUp = () => {
+    pointerCapturedByBox.current = false;
     // If we clicked on an already-selected box in a multi-selection without dragging,
     // replace the selection with just this group (or single box)
     if (!didDrag.current && wasMultiSelected.current && !pointerDownShift.current) {
