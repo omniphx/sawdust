@@ -229,6 +229,8 @@ export function Box3D({ box, allBoxes, isSelected, selectedBoxIds, onToggleSelec
         />
         <meshLambertMaterial
           color={color}
+          emissive={isSelected ? '#3b82f6' : '#000000'}
+          emissiveIntensity={isSelected ? 0.2 : 0}
           transparent={isSelected}
           opacity={isSelected ? 0.85 : 1}
         />
