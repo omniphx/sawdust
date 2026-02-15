@@ -11,7 +11,7 @@ import { snapToGrid } from '../../core/units';
 import { Box } from '../../types';
 
 const MIN_ZOOM = 20;
-const MAX_ZOOM = 500;
+const MAX_ZOOM = 1500;
 const DRAG_THRESHOLD = 5; // pixels
 
 function CameraExposer({ cameraRef }: { cameraRef: React.MutableRefObject<OrthographicCamera | null> }) {
