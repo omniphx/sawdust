@@ -144,33 +144,14 @@ export function Box3D({ box, allBoxes, isSelected, selectedBoxIds, onToggleSelec
       const deltaX = newX - draggedStartPos.x;
       const deltaZ = newZ - draggedStartPos.z;
 
-      const draggedIds = new Set(dragStartPositions.current.keys());
       const updates: Array<{ id: string; position: { x: number; y: number; z: number } }> = [];
 
       for (const [id, startPos] of dragStartPositions.current) {
         const movedX = startPos.x + deltaX;
         const movedZ = startPos.z + deltaZ;
 
-        // Find stacking Y for each box, excluding other dragged boxes
-        let stackY = 0;
-        const movingBox = allBoxes.find((b) => b.id === id);
-        if (movingBox) {
-          for (const other of allBoxes) {
-            if (draggedIds.has(other.id)) continue;
-            const overlapX =
-              movedX < other.position.x + other.dimensions.width &&
-              other.position.x < movedX + movingBox.dimensions.width;
-            const overlapZ =
-              movedZ < other.position.z + other.dimensions.depth &&
-              other.position.z < movedZ + movingBox.dimensions.depth;
-            if (overlapX && overlapZ) {
-              const otherTop = other.position.y + other.dimensions.height;
-              if (otherTop > stackY) stackY = otherTop;
-            }
-          }
-        }
-
-        updates.push({ id, position: { x: movedX, y: stackY, z: movedZ } });
+        // Keep Y at pre-drag position
+        updates.push({ id, position: { x: movedX, y: startPos.y, z: movedZ } });
       }
 
       onMoveSelected(updates);

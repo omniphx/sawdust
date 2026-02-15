@@ -11,7 +11,7 @@
 - ESLint config is not set up (v9 migration needed), so `npm run lint` fails — use `npm run build` for quality checks (includes tsc)
 - Multi-drag uses `dragStartPositions` ref to record initial positions of all selected boxes on pointer down; delta is computed from dragged box's start pos
 - When clicking an already-selected box in a multi-selection: don't replace selection on pointer down (to allow drag); replace on pointer up if no drag occurred
-- Auto-stacking during multi-drag excludes other dragged boxes from collision checks
+- Auto-stacking has been removed from both single-box and multi-box drag handlers (US-002/US-003)
 - `groupIdToColor(groupId)` in Box3D.tsx hashes a UUID to a hue for consistent group coloring
 - Group/Ungroup toolbar buttons only appear when selection meets criteria (2+ for group, any with groupId for ungroup)
 - `groupId` is optional on Box — `undefined` means not grouped, a shared UUID string means grouped together
@@ -49,4 +49,14 @@
 - **Learnings for future iterations:**
   - Auto-stacking logic exists in two places in Box3D: single-box drag (~line 177) and multi-box drag (~line 142). US-003 will handle the multi-box version.
   - The drag handler uses `box.position.y` which reflects the current position since React re-renders during drag with updated props
+---
+
+## 2026-02-15 - US-003
+- Implemented: Removed auto-stacking from multi-box drag in Box3D.tsx
+- Removed the `stackY` calculation loop that checked XZ overlap with non-dragged boxes
+- Now uses `startPos.y` (from `dragStartPositions` map) to maintain each box's pre-drag Y position
+- Also removed unused `draggedIds` Set since it was only used for the stacking exclusion
+- Files changed: `src/components/viewport/Box3D.tsx`
+- **Learnings for future iterations:**
+  - Both auto-stacking loops (single and multi) are now removed. No more auto-stacking in drag handlers.
 ---
