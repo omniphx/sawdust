@@ -43,17 +43,31 @@ export function PropertiesPanel() {
     z: selectedBox.position.y,
   };
 
-  const handleRotationChange = (degrees: number) => {
+  const handleRotate = (swap: 'wd' | 'hd' | 'wh') => {
+    const { width, height, depth } = selectedBox.dimensions;
+    let newDims = { width, height, depth };
+    let newPos = { ...selectedBox.position };
+
+    if (swap === 'wd') {
+      newDims = { width: depth, height, depth: width };
+    } else if (swap === 'hd') {
+      newDims = { width, height: depth, depth: height };
+      newPos.y = 0;
+    } else {
+      newDims = { width: height, height: width, depth };
+      newPos.y = 0;
+    }
+
     updateBox(selectedBox.id, {
-      rotation: (degrees * Math.PI) / 180,
+      dimensions: newDims,
+      position: newPos,
+      rotation: 0,
     });
   };
 
   const handleLabelChange = (label: string) => {
     updateBox(selectedBox.id, { label: label || undefined });
   };
-
-  const rotationDegrees = Math.round((selectedBox.rotation * 180) / Math.PI);
 
   return (
     <div className="w-72 bg-white border-l border-slate-200 p-4 overflow-y-auto">
@@ -145,18 +159,31 @@ export function PropertiesPanel() {
           </div>
         </div>
 
-        {/* Rotation */}
+        {/* Rotate */}
         <div>
-          <h3 className="text-slate-600 text-sm font-medium mb-2">Rotation (Y-axis)</h3>
-          <div className="flex items-center gap-2">
-            <input
-              type="number"
-              value={rotationDegrees}
-              onChange={(e) => handleRotationChange(parseInt(e.target.value) || 0)}
-              step="15"
-              className="flex-1 px-2 py-1 bg-slate-50 border border-slate-300 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-            />
-            <span className="text-slate-400 text-sm">deg</span>
+          <h3 className="text-slate-600 text-sm font-medium mb-2">Rotate</h3>
+          <div className="flex gap-2">
+            <button
+              onClick={() => handleRotate('wd')}
+              className="flex-1 px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium rounded-lg border border-slate-300 transition-colors"
+              title="Swap Width and Depth (rotate around vertical axis)"
+            >
+              W ↔ D
+            </button>
+            <button
+              onClick={() => handleRotate('hd')}
+              className="flex-1 px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium rounded-lg border border-slate-300 transition-colors"
+              title="Swap Height and Depth (rotate around left-right axis)"
+            >
+              H ↔ D
+            </button>
+            <button
+              onClick={() => handleRotate('wh')}
+              className="flex-1 px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium rounded-lg border border-slate-300 transition-colors"
+              title="Swap Width and Height (rotate around front-back axis)"
+            >
+              W ↔ H
+            </button>
           </div>
         </div>
 

@@ -108,7 +108,7 @@ export function Box3D({ box, allBoxes, isSelected, onSelect, onMove, snap }: Box
   return (
     <group
       position={[box.position.x, box.position.y, box.position.z]}
-      rotation={[0, box.rotation, 0]}
+      rotation={[0, 0, 0]}
     >
       <mesh
         ref={meshRef}
