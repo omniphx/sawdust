@@ -52,7 +52,8 @@ type ProjectAction =
   | { type: 'DELETE_SELECTED_BOXES'; ids: string[] }
   | { type: 'TOGGLE_SNAP' }
   | { type: 'GROUP_BOXES'; ids: string[]; groupId: string }
-  | { type: 'UNGROUP_BOXES'; ids: string[] };
+  | { type: 'UNGROUP_BOXES'; ids: string[] }
+  | { type: 'TOGGLE_LOCK'; ids: string[] };
 
 function createDefaultProject(): Project {
   return {
@@ -222,6 +223,17 @@ function projectReducer(state: ProjectState, action: ProjectAction): ProjectStat
       return setActiveBoxes(state, boxes);
     }
 
+    case 'TOGGLE_LOCK': {
+      const idSet = new Set(action.ids);
+      const targetBoxes = getActiveBoxes(state).filter((b) => idSet.has(b.id));
+      // If any are unlocked, lock all; if all locked, unlock all
+      const allLocked = targetBoxes.every((b) => b.locked);
+      const boxes = getActiveBoxes(state).map((box) =>
+        idSet.has(box.id) ? { ...box, locked: !allLocked } : box
+      );
+      return setActiveBoxes(state, boxes);
+    }
+
     case 'COPY_BOXES':
       return { ...state, clipboard: action.boxes };
 
@@ -260,6 +272,7 @@ interface ProjectContextValue {
   toggleSnap: () => void;
   groupSelectedBoxes: () => void;
   ungroupSelectedBoxes: () => void;
+  toggleLockSelectedBoxes: () => void;
 }
 
 const ProjectContext = createContext<ProjectContextValue | null>(null);
@@ -523,6 +536,11 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'UNGROUP_BOXES', ids: state.selectedBoxIds });
   }, [state.selectedBoxIds]);
 
+  const toggleLockSelectedBoxes = useCallback(() => {
+    if (state.selectedBoxIds.length === 0) return;
+    dispatch({ type: 'TOGGLE_LOCK', ids: state.selectedBoxIds });
+  }, [state.selectedBoxIds]);
+
   return (
     <ProjectContext.Provider
       value={{
@@ -548,6 +566,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         toggleSnap,
         groupSelectedBoxes,
         ungroupSelectedBoxes,
+        toggleLockSelectedBoxes,
       }}
     >
       {children}

@@ -1,5 +1,6 @@
 import { useRef, useState, useMemo } from 'react';
 import { ThreeEvent, useThree } from '@react-three/fiber';
+import { Html } from '@react-three/drei';
 import { Mesh, Vector3, BoxGeometry } from 'three';
 import { Box } from '../../types';
 import { getMaterialColor } from '../../core/materials';
@@ -237,6 +238,28 @@ export function Box3D({ box, allBoxes, isSelected, selectedBoxIds, onToggleSelec
             linewidth={2}
           />
         </lineSegments>
+      )}
+
+      {/* Lock icon overlay */}
+      {box.locked && (
+        <Html
+          position={[box.dimensions.width, box.dimensions.height, 0]}
+          style={{ pointerEvents: 'none' }}
+          center
+        >
+          <div style={{
+            fontSize: '14px',
+            lineHeight: 1,
+            background: 'rgba(245, 158, 11, 0.85)',
+            borderRadius: '4px',
+            padding: '2px 4px',
+            color: 'white',
+            userSelect: 'none',
+            whiteSpace: 'nowrap',
+          }}>
+            🔒
+          </div>
+        </Html>
       )}
     </group>
   );

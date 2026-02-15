@@ -7,7 +7,7 @@ import { getMaterialById } from '../../core/materials';
 
 export function PropertiesPanel() {
   const { selectedBox, selectedBoxIds, updateBox, deleteBox } = useSelection();
-  const { duplicateSelectedBoxes, deleteSelectedBoxes } = useProjectStore();
+  const { duplicateSelectedBoxes, deleteSelectedBoxes, toggleLockSelectedBoxes, getSelectedBoxes } = useProjectStore();
   const { project } = useProject();
 
   if (selectedBoxIds.length === 0) {
@@ -16,6 +16,8 @@ export function PropertiesPanel() {
 
   // Multi-select summary
   if (selectedBoxIds.length > 1) {
+    const selectedBoxesArr = getSelectedBoxes();
+    const allLocked = selectedBoxesArr.every((b) => b.locked);
     return (
       <div className="w-72 bg-white border-l border-slate-200 p-4 overflow-y-auto">
         <h2 className="text-slate-800 font-semibold mb-4">Properties</h2>
@@ -23,6 +25,12 @@ export function PropertiesPanel() {
           {selectedBoxIds.length} items selected
         </p>
         <div className="space-y-2">
+          <button
+            onClick={() => toggleLockSelectedBoxes()}
+            className="w-full px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-lg shadow-sm transition-colors"
+          >
+            {allLocked ? 'Unlock All' : 'Lock All'}
+          </button>
           <button
             onClick={() => duplicateSelectedBoxes()}
             className="w-full px-4 py-2 bg-slate-500 hover:bg-slate-600 text-white text-sm font-medium rounded-lg shadow-sm transition-colors"
@@ -220,6 +228,12 @@ export function PropertiesPanel() {
 
         {/* Actions */}
         <div className="space-y-2">
+          <button
+            onClick={() => toggleLockSelectedBoxes()}
+            className="w-full px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-lg shadow-sm transition-colors"
+          >
+            {selectedBox.locked ? 'Unlock' : 'Lock'}
+          </button>
           <button
             onClick={() => duplicateSelectedBoxes()}
             className="w-full px-4 py-2 bg-slate-500 hover:bg-slate-600 text-white text-sm font-medium rounded-lg shadow-sm transition-colors"
