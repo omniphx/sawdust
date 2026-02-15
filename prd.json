@@ -1,84 +1,204 @@
 {
   "project": "OpenCAD",
-  "branchName": "ralph/fix-marquee-and-grid-alignment",
-  "description": "Fix marquee selection conflicts with box dragging, improve selection visual feedback, and align grid spacing with the active unit system",
+  "branchName": "ralph/ux-fixes-and-group-drag",
+  "description": "Fix undo/redo batching, remove auto-stacking, fix inch snapping, improve marquee hit testing, and add group drag behavior",
   "userStories": [
     {
       "id": "US-001",
-      "title": "Prevent marquee from activating on box click/drag",
-      "description": "As a user, I want to drag a box without the marquee selection rectangle appearing so that box movement works reliably.",
+      "title": "Fix snap increment for inches unit",
+      "description": "As a user working in inches, I want snap-to-grid to snap to the nearest inch so that boxes align to inch boundaries instead of foot boundaries.",
       "acceptanceCriteria": [
-        "Add a shared mutable ref (e.g., `pointerCapturedByBox: React.MutableRefObject<boolean>`) to the Viewport component",
-        "Pass this ref to all Box3D components as a prop",
-        "In Box3D's `onPointerDown` handler, set `pointerCapturedByBox.current = true` synchronously before any other logic",
-        "In Box3D's `onPointerUp` handler, reset `pointerCapturedByBox.current = false`",
-        "In Viewport's `handleMarqueeMouseDown`, check `pointerCapturedByBox.current` at the start — if true, return early without initializing marquee state",
-        "Clicking and dragging on a box moves the box without any marquee rectangle appearing",
-        "Marquee rectangle only appears when clicking and dragging on empty grid space",
-        "Shift+Click on a box still toggles selection without triggering marquee",
-        "Single-click on empty space (no drag) still deselects all",
-        "Typecheck passes",
-        "Verify in browser using dev-browser skill"
+        "In src/core/units.ts, getSnapIncrement() returns 0.0254 (1 inch in meters) when unitSystem is 'inches'",
+        "getSnapIncrement() still returns 0.3048 for 'feet' and 0.01 for 'metric'",
+        "Dragging a box with snap enabled in inches mode snaps to 1-inch increments",
+        "Typecheck passes"
       ],
       "priority": 1,
       "passes": true,
-      "notes": "The root cause is that Box3D uses R3F pointer events while the marquee listens on the HTML container via React mouse events — stopPropagation in one system doesn't block the other. Since pointer events fire before mouse events in the browser event loop, the shared ref flag will be set by the time the mouse handler runs. Key files: Viewport.tsx, Box3D.tsx."
+      "notes": ""
     },
     {
       "id": "US-002",
-      "title": "Improve selected box visual feedback",
-      "description": "As a user, I want selected boxes to be clearly visually distinct so I can immediately tell which items are selected after using marquee or Shift+Click.",
+      "title": "Remove auto-stacking from single-box drag",
+      "description": "As a user, I want to drag a box without it jumping on top of other boxes so that I can freely position objects on the workspace.",
       "acceptanceCriteria": [
-        "Update Box3D's meshLambertMaterial to add `emissive` and `emissiveIntensity` props when selected",
-        "When selected: set emissive to a blue highlight color (e.g., '#3b82f6') with emissiveIntensity of 0.15-0.25",
-        "When not selected: set emissive to '#000000' (black, no glow) with emissiveIntensity of 0",
-        "The selection highlight is clearly visible and obviously different from the unselected state",
-        "Selection visual works for all material colors including blue-ish materials",
-        "Multi-selected boxes (via marquee or Shift+Click) all show the same selection highlight",
-        "Unselected boxes return to their normal appearance immediately when deselected",
-        "Keep the existing blue edge outline (#3b82f6) for selected boxes in addition to the emissive glow",
+        "In Box3D.tsx single-box drag handler (~line 177-194), remove the stackY calculation loop",
+        "Use box.position.y instead of stackY when calling onMove",
+        "Dragging a single box over another box does NOT change the dragged box's Y position",
+        "The dragged box stays at its pre-drag Y position throughout the drag",
         "Typecheck passes",
         "Verify in browser using dev-browser skill"
       ],
       "priority": 2,
-      "passes": true,
-      "notes": "meshLambertMaterial supports emissive prop which adds a glow independent of lighting. This is the simplest approach — no extra meshes or post-processing needed. Key file: Box3D.tsx."
+      "passes": false,
+      "notes": ""
     },
     {
       "id": "US-003",
-      "title": "Make grid cell size match unit system",
-      "description": "As a user, I want the grid lines to represent whole units in my chosen system so that I can visually estimate distances and place items precisely.",
+      "title": "Remove auto-stacking from multi-box drag",
+      "description": "As a user, I want to drag multiple selected boxes without any of them jumping on top of other boxes.",
       "acceptanceCriteria": [
-        "Update the Grid component (src/components/viewport/Grid.tsx) to accept a `unitSystem` prop",
-        "In feet mode: set cellSize to 0.3048 (1 foot) and sectionSize to 3.048 (10 feet)",
-        "In inches mode: same as feet — cellSize 0.3048 (1 foot) and sectionSize 3.048 (10 feet)",
-        "In metric mode: set cellSize to 0.01 (1 cm) and sectionSize to 0.1 (10 cm)",
-        "Pass unitSystem from Viewport (which has access to project state) to the Grid component as a prop",
-        "Grid lines visually change when the user switches unit system in the toolbar",
-        "Grid origin remains at (0,0,0) so box positions align with grid intersections",
-        "A box placed at position (0,0,0) has its bottom-left-front corner exactly on a grid line intersection",
+        "In Box3D.tsx multi-box drag handler (~line 142-176), remove the stackY calculation loop",
+        "Use startPos.y (from dragStartPositions map) instead of stackY for each box",
+        "Dragging multiple selected boxes over other boxes does NOT change any dragged box's Y position",
+        "Each dragged box maintains its pre-drag Y position throughout the drag",
         "Typecheck passes",
         "Verify in browser using dev-browser skill"
       ],
       "priority": 3,
-      "passes": true,
-      "notes": "The drei Grid component accepts cellSize and sectionSize as props. Changing these dynamically when the unit system changes is straightforward. The infiniteGrid mode handles alignment — grid lines extend from position [0,0,0] in multiples of cellSize. Key files: Grid.tsx, Viewport.tsx."
+      "passes": false,
+      "notes": ""
     },
     {
       "id": "US-004",
-      "title": "Align snap increment with visible grid lines",
-      "description": "As a user, I want snapping to land on visible grid lines so that the snap behavior matches what I see.",
+      "title": "Project full bounding box to screen space for marquee",
+      "description": "As a developer, I need a function that returns the screen-space bounding rectangle of a box by projecting all 8 corners so marquee hit testing can check for overlap.",
       "acceptanceCriteria": [
-        "Update getSnapIncrement() in src/core/units.ts to return 0.3048 (1 foot) for both 'feet' and 'inches' unit systems",
-        "Keep getSnapIncrement() returning 0.01 (1 cm) for 'metric' unit system",
-        "Existing snap behavior (dragging boxes with snap enabled) still works correctly with new increments",
-        "Boxes snap exactly to visible grid line positions when dragged",
+        "Create a getBoxScreenBounds() function in Viewport.tsx that takes a Box, camera, and container element",
+        "Projects all 8 corners of the box's 3D bounding box (all combos of x/x+width, y/y+height, z/z+depth) to screen coordinates",
+        "Returns { left, top, right, bottom } representing the screen-space axis-aligned bounding rectangle",
+        "Typecheck passes"
+      ],
+      "priority": 4,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-005",
+      "title": "Update marquee hit testing to use intersection",
+      "description": "As a user, I want the marquee to select any box it touches so that I don't have to precisely cover each box's center point.",
+      "acceptanceCriteria": [
+        "Replace the center-point containment check in handleMarqueeMouseUp with AABB intersection using getBoxScreenBounds()",
+        "A box is selected if marquee.left <= box.right AND marquee.right >= box.left AND marquee.top <= box.bottom AND marquee.bottom >= box.top",
+        "A box fully inside the marquee is selected",
+        "A box partially overlapping the marquee edge is selected",
+        "A box fully outside the marquee is not selected",
+        "Shift+marquee still toggles selection (add/remove from existing selection)",
+        "Remove the old getBoxScreenPosition() function if no longer used",
         "Typecheck passes",
         "Verify in browser using dev-browser skill"
       ],
-      "priority": 4,
-      "passes": true,
-      "notes": "This is a simple change to one function in src/core/units.ts. The snap increment previously returned 0.0254 (1 inch) for both feet and inches modes, which didn't match any visible grid line. Now it matches the grid cell size exactly."
+      "priority": 5,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-006",
+      "title": "Add batch history support to the store",
+      "description": "As a developer, I need the history system to support begin/end batch signals so that multiple dispatches between them collapse into a single undo step.",
+      "acceptanceCriteria": [
+        "Add HISTORY_BATCH_START and HISTORY_BATCH_END action types to the reducer",
+        "Add historyBatchAnchor: Box[] | null to ProjectState to hold the pre-batch snapshot",
+        "HISTORY_BATCH_START saves a deep clone of current boxes as the anchor",
+        "While historyBatchAnchor is non-null, UPDATE_BOX dispatches do NOT create history entries",
+        "HISTORY_BATCH_END compares current boxes to anchor — if changed, push one snapshot to history; clear anchor",
+        "If HISTORY_BATCH_END fires without a matching start, it is a no-op",
+        "Non-batch box-mutating actions (ADD_BOX, DELETE_BOX, etc.) still create history entries immediately",
+        "History array is capped at 50 entries (drop oldest when exceeded)",
+        "Typecheck passes"
+      ],
+      "priority": 6,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-007",
+      "title": "Batch drag operations in Box3D",
+      "description": "As a user, I want to drag a box and have undo reverse the entire drag in one step instead of requiring multiple undos.",
+      "acceptanceCriteria": [
+        "Box3D handlePointerDown dispatches HISTORY_BATCH_START before starting drag",
+        "Box3D handlePointerUp dispatches HISTORY_BATCH_END after ending drag",
+        "Dragging a single box and pressing Cmd+Z returns it to its pre-drag position in one step",
+        "Dragging multiple selected boxes and pressing Cmd+Z returns all of them to pre-drag positions in one step",
+        "Redo (Cmd+Shift+Z) restores the post-drag position in one step",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 7,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-008",
+      "title": "Fix properties panel undo requiring double press",
+      "description": "As a user, I want to change a dimension or position value in the properties panel and undo it in a single Cmd+Z press.",
+      "acceptanceCriteria": [
+        "Changing width, height, or depth via the properties panel creates exactly one history entry",
+        "Changing X, Y, or Z position via the properties panel creates exactly one history entry",
+        "Pressing undo once fully reverses a dimension change",
+        "Pressing undo once fully reverses a position change",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 8,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-009",
+      "title": "Drag grouped box moves entire group",
+      "description": "As a user, I want to drag any box in a group and have all group members move together, maintaining their relative positions.",
+      "acceptanceCriteria": [
+        "In Box3D handlePointerDown, when a grouped box starts a drag, all boxes with the same groupId are added to dragStartPositions (not just selected boxes)",
+        "Snap-to-grid applies to the dragged box; other group members follow the same delta",
+        "Relative positions between group members are preserved exactly",
+        "Locked boxes within the group do not move",
+        "Dragging a single grouped box moves all group members even if they weren't explicitly selected",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 9,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-010",
+      "title": "Properties panel position changes apply to group",
+      "description": "As a user, I want to change X, Y, or Z position in the properties panel and have the entire group move by the same amount.",
+      "acceptanceCriteria": [
+        "When a grouped box is selected and its X position is changed in the panel, all boxes with the same groupId shift by the same X delta",
+        "Same behavior for Y and Z position changes",
+        "The delta is calculated as newValue - oldValue of the edited box, then applied to all group members",
+        "Dimension changes (width, height, depth) still only affect the individual box, not the group",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 10,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-011",
+      "title": "Add keyboard shortcuts for group and ungroup",
+      "description": "As a user, I want to press Cmd+G to group selected boxes and Cmd+Shift+G to ungroup them for faster workflow.",
+      "acceptanceCriteria": [
+        "Cmd+G (Ctrl+G on non-Mac) groups the currently selected boxes when 2+ are selected",
+        "Cmd+Shift+G (Ctrl+Shift+G) ungroups the currently selected boxes when selection contains grouped boxes",
+        "Shortcuts are added to App.tsx alongside existing Cmd+Z, Cmd+C, etc.",
+        "Shortcuts do nothing when conditions aren't met (less than 2 selected for group, no grouped boxes for ungroup)",
+        "Typecheck passes"
+      ],
+      "priority": 11,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-012",
+      "title": "Verify all undoable actions still work",
+      "description": "As a user, I want add, delete, duplicate, paste, group, ungroup, and lock/unlock to each be undoable in one step after the batch history changes.",
+      "acceptanceCriteria": [
+        "Adding a box then pressing undo removes it",
+        "Deleting a box then pressing undo restores it",
+        "Duplicating a box then pressing undo removes the duplicate",
+        "Grouping boxes then pressing undo ungroups them",
+        "Locking a box then pressing undo unlocks it",
+        "Redo works correctly for each of the above",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 12,
+      "passes": false,
+      "notes": ""
     }
   ]
 }
