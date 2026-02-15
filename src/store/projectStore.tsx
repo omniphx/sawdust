@@ -50,7 +50,9 @@ type ProjectAction =
   | { type: 'PASTE_BOXES'; boxes: Box[] }
   | { type: 'DUPLICATE_BOXES'; boxes: Box[] }
   | { type: 'DELETE_SELECTED_BOXES'; ids: string[] }
-  | { type: 'TOGGLE_SNAP' };
+  | { type: 'TOGGLE_SNAP' }
+  | { type: 'GROUP_BOXES'; ids: string[]; groupId: string }
+  | { type: 'UNGROUP_BOXES'; ids: string[] };
 
 function createDefaultProject(): Project {
   return {
@@ -204,6 +206,22 @@ function projectReducer(state: ProjectState, action: ProjectAction): ProjectStat
     case 'TOGGLE_SNAP':
       return { ...state, snapEnabled: !state.snapEnabled };
 
+    case 'GROUP_BOXES': {
+      const idSet = new Set(action.ids);
+      const boxes = getActiveBoxes(state).map((box) =>
+        idSet.has(box.id) ? { ...box, groupId: action.groupId } : box
+      );
+      return setActiveBoxes(state, boxes);
+    }
+
+    case 'UNGROUP_BOXES': {
+      const idSet = new Set(action.ids);
+      const boxes = getActiveBoxes(state).map((box) =>
+        idSet.has(box.id) ? { ...box, groupId: undefined } : box
+      );
+      return setActiveBoxes(state, boxes);
+    }
+
     case 'COPY_BOXES':
       return { ...state, clipboard: action.boxes };
 
@@ -240,6 +258,8 @@ interface ProjectContextValue {
   placeComponent: (template: ComponentTemplate) => void;
   deleteComponentTemplate: (id: string) => void;
   toggleSnap: () => void;
+  groupSelectedBoxes: () => void;
+  ungroupSelectedBoxes: () => void;
 }
 
 const ProjectContext = createContext<ProjectContextValue | null>(null);
@@ -484,6 +504,16 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'TOGGLE_SNAP' });
   }, []);
 
+  const groupSelectedBoxes = useCallback(() => {
+    if (state.selectedBoxIds.length < 2) return;
+    dispatch({ type: 'GROUP_BOXES', ids: state.selectedBoxIds, groupId: uuid() });
+  }, [state.selectedBoxIds]);
+
+  const ungroupSelectedBoxes = useCallback(() => {
+    if (state.selectedBoxIds.length === 0) return;
+    dispatch({ type: 'UNGROUP_BOXES', ids: state.selectedBoxIds });
+  }, [state.selectedBoxIds]);
+
   return (
     <ProjectContext.Provider
       value={{
@@ -507,6 +537,8 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         placeComponent,
         deleteComponentTemplate,
         toggleSnap,
+        groupSelectedBoxes,
+        ungroupSelectedBoxes,
       }}
     >
       {children}

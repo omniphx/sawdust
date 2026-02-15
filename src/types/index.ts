@@ -5,6 +5,7 @@ export interface Box {
   rotation: number;  // Y-axis only, radians
   materialId: string;
   label?: string;
+  groupId?: string;
 }
 
 export type UnitType = 'board_feet' | 'square_feet' | 'cubic_feet' | 'linear_feet' | 'count';
