@@ -43,3 +43,22 @@
 **Verification:**
 1. `npm run build` passes (TypeScript check + production build)
 2. Browser verification: App loads correctly. R3F pointer events don't work in headless Chrome so full interactive marquee testing not possible via Playwright.
+
+## US-006: Add batch history support to the store
+
+**Date:** 2026-02-14
+
+**Change:** Verified that batch history support was already fully implemented in `src/store/projectStore.tsx`. All acceptance criteria met:
+
+- `HISTORY_BATCH_START` and `HISTORY_BATCH_END` action types in reducer
+- `historyBatchAnchor: Box[] | null` in `ProjectState`
+- `HISTORY_BATCH_START` saves deep clone of current boxes as anchor
+- `UPDATE_BOX` suppressed during batch (in `projectReducerWithHistory`)
+- `HISTORY_BATCH_END` compares current to anchor, pushes one snapshot if changed
+- No-op if `HISTORY_BATCH_END` fires without matching start
+- Non-batch actions still create history entries immediately
+- History capped at 50 entries
+
+**Verification:**
+1. `npm run build` passes (TypeScript check + production build)
+2. Code review confirms all acceptance criteria are met in the existing implementation

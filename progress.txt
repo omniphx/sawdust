@@ -72,3 +72,18 @@
   - `getBoxScreenBounds` uses the same projection technique as the old `getBoxScreenPosition` but for all 8 corners instead of just the center
   - Shift+marquee toggle logic is unchanged — it uses a Set to add/remove from current selection
 ---
+
+## 2026-02-14 - US-006
+- Verified: Batch history support was already implemented in `src/store/projectStore.tsx`
+- `HISTORY_BATCH_START` saves deep clone of boxes as `historyBatchAnchor` (lines 297-304)
+- `HISTORY_BATCH_END` compares current boxes to anchor; if changed, pushes one history snapshot; clears anchor (lines 306-335)
+- `projectReducerWithHistory` suppresses `UPDATE_BOX` history entries when `historyBatchAnchor` is non-null (lines 363-365)
+- Non-batch mutating actions (ADD_BOX, DELETE_BOX, etc.) still create history entries immediately
+- History capped at 50 entries via `MAX_HISTORY` constant
+- `historyBatchStart()` and `historyBatchEnd()` exposed via context (lines 722-728)
+- Build and typecheck pass
+- Files changed: none (already implemented); only `prd.json` updated
+- **Learnings for future iterations:**
+  - The batch system specifically targets UPDATE_BOX suppression — other box-mutating actions still record history during a batch
+  - HISTORY_BATCH_END replaces the history entry at current index with the anchor snapshot and pushes current state — this assumes no non-UPDATE_BOX mutations occurred during the batch
+---
