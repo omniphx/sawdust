@@ -109,6 +109,7 @@ function projectReducer(
         position: { ...b.position },
         dimensions: { ...b.dimensions },
         rotation: { ...b.rotation },
+        cuts: b.cuts ? b.cuts.map(c => ({ ...c })) : undefined,
       }));
       return {
         ...state,
@@ -385,6 +386,7 @@ function projectReducer(
         position: { ...b.position },
         dimensions: { ...b.dimensions },
         rotation: { ...b.rotation },
+        cuts: b.cuts ? b.cuts.map(c => ({ ...c })) : undefined,
       }));
       return { ...state, historyBatchAnchor: anchor };
     }
@@ -400,6 +402,7 @@ function projectReducer(
           position: { ...b.position },
           dimensions: { ...b.dimensions },
           rotation: { ...b.rotation },
+          cuts: b.cuts ? b.cuts.map(c => ({ ...c })) : undefined,
         }));
         // Rewind history to anchor point, push anchor as "before" and current as "after"
         const anchorSnapshot = state.historyBatchAnchor;
@@ -467,6 +470,7 @@ function projectReducerWithHistory(
         position: { ...b.position },
         dimensions: { ...b.dimensions },
         rotation: { ...b.rotation },
+        cuts: b.cuts ? b.cuts.map(c => ({ ...c })) : undefined,
       }));
       // Truncate any redo history beyond current index
       const history = [
@@ -731,6 +735,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
           z: source.position.z + offsetZ,
         },
         label: source.label ? `${source.label} (copy)` : undefined,
+        cuts: source.cuts?.map(c => ({ ...c, id: uuid() })),
       }));
     },
     [],

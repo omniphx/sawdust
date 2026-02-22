@@ -1,3 +1,12 @@
+export type CutFace = 'top' | 'bottom' | 'front' | 'back' | 'left' | 'right';
+
+export interface BoxCut {
+  id: string;
+  face: CutFace;    // Which face the cut starts from
+  angle: number;    // Degrees (0 = square shoulder, 45 = miter). Range: 0–89
+  depth?: number;   // Meters from the face. Omit = full through-cut
+}
+
 export interface Box {
   id: string;
   position: { x: number; y: number; z: number };  // meters, bottom-left-front corner
@@ -8,6 +17,7 @@ export interface Box {
   groupId?: string;
   locked?: boolean;
   hidden?: boolean;
+  cuts?: BoxCut[];
 }
 
 export type UnitType = 'board_feet' | 'square_feet' | 'cubic_feet' | 'linear_feet' | 'count';

@@ -4,6 +4,7 @@ import { useProject } from '../../hooks/useProject';
 import { useProjectStore } from '../../store/projectStore';
 import { DimensionInput } from '../ui/DimensionInput';
 import { MaterialPicker } from '../ui/MaterialPicker';
+import { CutsSection } from '../ui/CutsSection';
 import { getMaterialById } from '../../core/materials';
 import { ZERO_ROTATION } from '../../core/rotation';
 
@@ -447,6 +448,13 @@ export function PropertiesPanel() {
             </button>
           </div>
         </div>
+
+        {/* Cuts */}
+        <CutsSection
+          box={selectedBox}
+          unitSystem={project.unitSystem}
+          onUpdateCuts={(cuts) => updateBox(selectedBox.id, { cuts })}
+        />
 
         {/* Actions */}
         <div className="space-y-2">

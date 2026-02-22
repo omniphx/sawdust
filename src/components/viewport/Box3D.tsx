@@ -1,8 +1,10 @@
-import { useRef, useState, useMemo } from 'react';
-import { ThreeEvent, useThree } from '@react-three/fiber';
-import { Mesh, Vector3, BoxGeometry, Plane } from 'three';
+import { useRef, useState, useMemo, useCallback } from 'react';
+import { ThreeEvent, useThree, useFrame } from '@react-three/fiber';
+import { Mesh, Vector3, BoxGeometry, Plane, BufferGeometry } from 'three';
+import { Geometry, Base, Subtraction, CSGGeometryRef } from '@react-three/csg';
 import { Box } from '../../types';
 import { getMaterialColor } from '../../core/materials';
+import { buildCutterProps } from '../../core/cuts';
 import type { CameraView } from './Viewport';
 
 // Per-view drag config: which plane to drag on and which axis stays fixed
@@ -50,13 +52,48 @@ export function Box3D({ box, allBoxes, isSelected, selectedBoxIds, cameraView, i
 
   const color = getMaterialColor(box.materialId);
 
+  const hasCuts = (box.cuts?.length ?? 0) > 0;
+  const csgRef = useRef<CSGGeometryRef>(null);
+  const [csgEdgeGeometry, setCsgEdgeGeometry] = useState<BufferGeometry | null>(null);
+  const csgNeedsEdgeUpdate = useRef(false);
+
+  // After CSG updates, capture the resulting geometry for edge rendering
+  const handleCsgRef = useCallback((ref: CSGGeometryRef | null) => {
+    (csgRef as React.MutableRefObject<CSGGeometryRef | null>).current = ref;
+    if (ref) csgNeedsEdgeUpdate.current = true;
+  }, []);
+
+  // Poll for CSG geometry on next frame after ref is set
+  useFrame(() => {
+    if (csgNeedsEdgeUpdate.current && csgRef.current?.geometry) {
+      const geo = csgRef.current.geometry;
+      if (geo.attributes.position) {
+        setCsgEdgeGeometry(geo.clone());
+        csgNeedsEdgeUpdate.current = false;
+      }
+    }
+  });
+
+  // Trigger edge update when cuts change
+  const cutsKey = JSON.stringify(box.cuts ?? []);
+  useMemo(() => {
+    if (hasCuts) {
+      csgNeedsEdgeUpdate.current = true;
+      // Clear stale edge geometry so it refreshes
+      setCsgEdgeGeometry(null);
+    } else {
+      setCsgEdgeGeometry(null);
+    }
+  }, [cutsKey, hasCuts, box.dimensions.width, box.dimensions.height, box.dimensions.depth]);
+
   const edgeGeometry = useMemo(() => {
+    if (csgEdgeGeometry) return csgEdgeGeometry;
     return new BoxGeometry(
       box.dimensions.width,
       box.dimensions.height,
       box.dimensions.depth
     );
-  }, [box.dimensions.width, box.dimensions.height, box.dimensions.depth]);
+  }, [box.dimensions.width, box.dimensions.height, box.dimensions.depth, csgEdgeGeometry]);
 
   // Get all box IDs in the same group as this box
   const groupMemberIds = box.groupId
@@ -236,9 +273,25 @@ export function Box3D({ box, allBoxes, isSelected, selectedBoxIds, cameraView, i
         onPointerEnter={() => { if (!isMeasuring && !box.locked) document.body.style.cursor = 'move'; }}
         onClick={(e: ThreeEvent<MouseEvent>) => { if (!isMeasuring) e.stopPropagation(); }}
       >
-        <boxGeometry
-          args={[box.dimensions.width, box.dimensions.height, box.dimensions.depth]}
-        />
+        {hasCuts ? (
+          <Geometry ref={handleCsgRef}>
+            <Base>
+              <boxGeometry args={[box.dimensions.width, box.dimensions.height, box.dimensions.depth]} />
+            </Base>
+            {box.cuts!.map((cut) => {
+              const props = buildCutterProps(box.dimensions, cut);
+              return (
+                <Subtraction key={cut.id} position={props.position} rotation={props.rotation} scale={props.scale}>
+                  <boxGeometry />
+                </Subtraction>
+              );
+            })}
+          </Geometry>
+        ) : (
+          <boxGeometry
+            args={[box.dimensions.width, box.dimensions.height, box.dimensions.depth]}
+          />
+        )}
         <meshLambertMaterial
           color={color}
           emissive={isSelected ? '#3b82f6' : '#000000'}
