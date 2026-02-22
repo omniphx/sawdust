@@ -138,7 +138,7 @@ export function PropertiesPanel() {
           </div>
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-2 mt-4">
           <button
             onClick={() => toggleLockSelectedBoxes()}
             className="w-full px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-lg shadow-sm transition-colors"
