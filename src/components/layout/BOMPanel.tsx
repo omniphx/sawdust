@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useProject } from '../../hooks/useProject';
 import { useProjectStore } from '../../store/projectStore';
-import { getMaterialById, PURCHASE_LENGTH_OPTIONS, STANDARD_PURCHASE_SIZES } from '../../core/materials';
+import { getMaterialById, PURCHASE_LENGTH_OPTIONS, PURCHASE_SHEET_OPTIONS, STANDARD_PURCHASE_SIZES, SHEET_MATERIAL_IDS } from '../../core/materials';
 import { metersToDisplayUnit, getDisplayUnitLabel } from '../../core/units';
 import { calculatePurchaseList } from '../../core/bom';
 
@@ -11,6 +11,7 @@ export function BOMPanel() {
 
   const [showPurchaseCalc, setShowPurchaseCalc] = useState(false);
   const [customSizes, setCustomSizes] = useState<Record<string, number>>({});
+  const [customSheetSizes, setCustomSheetSizes] = useState<Record<string, { width: number; depth: number }>>({});
 
   const unitLabel = getDisplayUnitLabel(project.unitSystem);
 
@@ -38,11 +39,19 @@ export function BOMPanel() {
 
   const purchaseList = useMemo(() => {
     if (!showPurchaseCalc || project.boxes.length === 0) return [];
-    return calculatePurchaseList(project.boxes, project.unitSystem, customSizes);
-  }, [showPurchaseCalc, project.boxes, project.unitSystem, customSizes]);
+    return calculatePurchaseList(project.boxes, project.unitSystem, customSizes, customSheetSizes);
+  }, [showPurchaseCalc, project.boxes, project.unitSystem, customSizes, customSheetSizes]);
 
   const handleSizeChange = (materialId: string, meters: number) => {
     setCustomSizes((prev) => ({ ...prev, [materialId]: meters }));
+  };
+
+  const handleSheetSizeChange = (materialId: string, optionIndex: number) => {
+    const opt = PURCHASE_SHEET_OPTIONS[optionIndex];
+    setCustomSheetSizes((prev) => ({
+      ...prev,
+      [materialId]: { width: opt.widthMeters, depth: opt.depthMeters },
+    }));
   };
 
   return (
@@ -73,7 +82,20 @@ export function BOMPanel() {
             <p className="text-slate-400 text-sm">No purchasable materials.</p>
           ) : (
             purchaseList.map((entry) => {
+              const isSheet = SHEET_MATERIAL_IDS.has(entry.materialId);
               const currentSize = customSizes[entry.materialId] ?? STANDARD_PURCHASE_SIZES[entry.materialId];
+              // For sheets, find the selected sheet option index
+              const currentSheetIndex = (() => {
+                if (!isSheet) return 0;
+                const custom = customSheetSizes[entry.materialId];
+                if (custom) {
+                  return PURCHASE_SHEET_OPTIONS.findIndex(
+                    (o) => Math.abs(o.widthMeters - custom.width) < 0.01 && Math.abs(o.depthMeters - custom.depth) < 0.01
+                  );
+                }
+                // Default: 4'×8' (index 2)
+                return 2;
+              })();
               return (
                 <div key={entry.materialId}>
                   <div className="flex items-center gap-2 mb-1">
@@ -91,20 +113,41 @@ export function BOMPanel() {
 
                   {/* Standard size dropdown */}
                   <div className="mb-1.5 ml-5">
-                    <select
-                      className="text-xs bg-slate-50 border border-slate-200 rounded px-1.5 py-0.5 text-slate-600"
-                      value={currentSize}
-                      onChange={(e) => handleSizeChange(entry.materialId, Number(e.target.value))}
-                    >
-                      {PURCHASE_LENGTH_OPTIONS.map((opt) => (
-                        <option key={opt.meters} value={opt.meters}>
-                          {opt.label}
-                        </option>
-                      ))}
-                    </select>
-                    <span className="text-slate-400 text-xs ml-1.5">
-                      std length
-                    </span>
+                    {isSheet ? (
+                      <>
+                        <select
+                          className="text-xs bg-slate-50 border border-slate-200 rounded px-1.5 py-0.5 text-slate-600"
+                          value={currentSheetIndex}
+                          onChange={(e) => handleSheetSizeChange(entry.materialId, Number(e.target.value))}
+                        >
+                          {PURCHASE_SHEET_OPTIONS.map((opt, i) => (
+                            <option key={i} value={i}>
+                              {opt.label}
+                            </option>
+                          ))}
+                        </select>
+                        <span className="text-slate-400 text-xs ml-1.5">
+                          sheet size
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <select
+                          className="text-xs bg-slate-50 border border-slate-200 rounded px-1.5 py-0.5 text-slate-600"
+                          value={currentSize}
+                          onChange={(e) => handleSizeChange(entry.materialId, Number(e.target.value))}
+                        >
+                          {PURCHASE_LENGTH_OPTIONS.map((opt) => (
+                            <option key={opt.meters} value={opt.meters}>
+                              {opt.label}
+                            </option>
+                          ))}
+                        </select>
+                        <span className="text-slate-400 text-xs ml-1.5">
+                          std length
+                        </span>
+                      </>
+                    )}
                   </div>
 
                   {/* Piece list */}

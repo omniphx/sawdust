@@ -104,6 +104,18 @@ export const PURCHASE_LENGTH_OPTIONS = [
   { label: "16 ft", meters: 16 * _FT },
 ];
 
+// Standard sheet size options for plywood (width × depth in meters)
+export const PURCHASE_SHEET_OPTIONS = [
+  { label: "2' × 4'", widthMeters: 2 * _FT, depthMeters: 4 * _FT },
+  { label: "4' × 4'", widthMeters: 4 * _FT, depthMeters: 4 * _FT },
+  { label: "4' × 8'", widthMeters: 4 * _FT, depthMeters: 8 * _FT },
+  { label: "4' × 10'", widthMeters: 4 * _FT, depthMeters: 10 * _FT },
+  { label: "5' × 5'", widthMeters: 5 * _FT, depthMeters: 5 * _FT },
+];
+
+// Material IDs that are sheet goods (plywood, etc.)
+export const SHEET_MATERIAL_IDS = new Set(['plywood-3-4', 'plywood-1-2']);
+
 export function getMaterialById(id: string): Material | undefined {
   return DEFAULT_MATERIALS.find(m => m.id === id);
 }

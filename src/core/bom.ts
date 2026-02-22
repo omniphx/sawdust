@@ -1,5 +1,5 @@
 import { Box, BOMEntry, UnitType, PurchaseEntry, PurchasePiece, UnitSystem } from '../types';
-import { getMaterialById, STANDARD_PURCHASE_SIZES } from './materials';
+import { getMaterialById, STANDARD_PURCHASE_SIZES, SHEET_MATERIAL_IDS } from './materials';
 import {
   calculateBoardFeet,
   squareMetersToFeet,
@@ -84,12 +84,11 @@ export function calculateBOM(boxes: Box[]): BOMEntry[] {
   );
 }
 
-const SHEET_MATERIAL_IDS = new Set(['plywood-3-4', 'plywood-1-2']);
-
 export function calculatePurchaseList(
   boxes: Box[],
   unitSystem: UnitSystem,
   customSizes?: Record<string, number>,
+  customSheetSizes?: Record<string, { width: number; depth: number }>,
 ): PurchaseEntry[] {
   // Group boxes by materialId
   const groups = new Map<string, Box[]>();
@@ -110,20 +109,31 @@ export function calculatePurchaseList(
     // Skip non-applicable materials
     if (materialId === 'concrete' || materialId === 'heater') continue;
 
-    const standardLength = customSizes?.[materialId] ?? STANDARD_PURCHASE_SIZES[materialId];
-    if (standardLength == null) continue;
-
     const isSheet = SHEET_MATERIAL_IDS.has(materialId);
+
+    let standardLength: number;
+    let sheetWidth: number | undefined;
+
+    if (isSheet && customSheetSizes?.[materialId]) {
+      // Custom sheet size: use both width and depth
+      sheetWidth = customSheetSizes[materialId].width;
+      standardLength = customSheetSizes[materialId].depth;
+    } else {
+      standardLength = customSizes?.[materialId] ?? STANDARD_PURCHASE_SIZES[materialId];
+      if (isSheet) {
+        sheetWidth = material.defaultDimensions?.width;
+      }
+    }
+    if (standardLength == null) continue;
 
     // Build standard size label
     const stdDisplay = parseFloat(metersToDisplayUnit(standardLength, unitSystem).toFixed(2));
     let standardSizeLabel: string;
     if (isSheet) {
-      // Sheet goods: show width × depth (e.g. "4 × 8 ft")
-      const sheetWidth = material.defaultDimensions
-        ? parseFloat(metersToDisplayUnit(material.defaultDimensions.width, unitSystem).toFixed(2))
+      const wDisplay = sheetWidth
+        ? parseFloat(metersToDisplayUnit(sheetWidth, unitSystem).toFixed(2))
         : stdDisplay;
-      standardSizeLabel = `${sheetWidth} × ${stdDisplay} ${uLabel} sheet`;
+      standardSizeLabel = `${wDisplay} × ${stdDisplay} ${uLabel} sheet`;
     } else {
       standardSizeLabel = `${stdDisplay} ${uLabel}`;
     }
@@ -136,8 +146,8 @@ export function calculatePurchaseList(
       if (isSheet) {
         // For sheet goods, check the two largest face dimensions against the sheet
         const sorted = [...dims].sort((a, b) => b - a);
-        const sheetWidth = material.defaultDimensions?.width ?? standardLength;
-        oversized = sorted[0] > standardLength + 0.001 || sorted[1] > sheetWidth + 0.001;
+        const sw = sheetWidth ?? standardLength;
+        oversized = sorted[0] > standardLength + 0.001 || sorted[1] > sw + 0.001;
       } else {
         oversized = longestDim > standardLength + 0.001;
       }
