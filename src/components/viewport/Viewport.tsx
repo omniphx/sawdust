@@ -298,7 +298,11 @@ export function Viewport() {
     // If not a drag (small movement), the background click handler in R3F will handle deselect
 
     setMarquee(null);
-    marqueeActive.current = false;
+    // Delay resetting marqueeActive so the subsequent click event on the
+    // background mesh still sees it as true and skips the deselect logic.
+    requestAnimationFrame(() => {
+      marqueeActive.current = false;
+    });
   }, [marquee, activeBoxes, state.selectedBoxIds, selectBoxes]);
 
   const marqueeStyle = marquee && marqueeActive.current
