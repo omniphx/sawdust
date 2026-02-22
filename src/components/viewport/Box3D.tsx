@@ -1,7 +1,7 @@
 import { useRef, useState, useMemo } from 'react';
 import { ThreeEvent, useThree } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
-import { Mesh, Vector3, BoxGeometry } from 'three';
+import { Mesh, Vector3, BoxGeometry, Plane } from 'three';
 import { Box } from '../../types';
 import { getMaterialColor } from '../../core/materials';
 import type { CameraView } from './Viewport';
@@ -48,6 +48,8 @@ export function Box3D({ box, allBoxes, isSelected, selectedBoxIds, cameraView, o
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState(new Vector3());
   const dragPlaneY = useRef(0);
+  const dragPlaneRef = useRef(new Plane());
+  const dragViewRef = useRef<CameraView>(cameraView);
   const dragStartPositions = useRef<Map<string, { x: number; y: number; z: number }>>(new Map());
   const didDrag = useRef(false);
   const wasMultiSelected = useRef(false);
@@ -96,14 +98,20 @@ export function Box3D({ box, allBoxes, isSelected, selectedBoxIds, cameraView, o
     // Lock drag plane based on current camera view
     const config = DRAG_PLANE_CONFIG[cameraView];
     dragPlaneY.current = box.position[config.fixedAxis];
+    dragViewRef.current = cameraView;
 
-    const planeNormal = new Vector3(...config.normal);
+    dragPlaneRef.current.set(
+      new Vector3(...config.normal),
+      -dragPlaneY.current
+    );
     raycaster.setFromCamera(pointer, camera);
     const intersectPoint = new Vector3();
-    raycaster.ray.intersectPlane(
-      { normal: planeNormal, constant: -dragPlaneY.current } as never,
-      intersectPoint
-    );
+    const hit = raycaster.ray.intersectPlane(dragPlaneRef.current, intersectPoint);
+
+    if (!hit) {
+      // Ray is parallel to drag plane — skip drag
+      return;
+    }
 
     // Compute offset on the two movable axes, zero on the fixed axis
     const offset = new Vector3(
@@ -149,14 +157,13 @@ export function Box3D({ box, allBoxes, isSelected, selectedBoxIds, cameraView, o
     if (!isDragging) return;
     e.stopPropagation();
 
-    const config = DRAG_PLANE_CONFIG[cameraView];
-    const planeNormal = new Vector3(...config.normal);
+    // Use the same plane and config from when drag started
+    const config = DRAG_PLANE_CONFIG[dragViewRef.current];
     raycaster.setFromCamera(pointer, camera);
     const intersectPoint = new Vector3();
-    raycaster.ray.intersectPlane(
-      { normal: planeNormal, constant: -dragPlaneY.current } as never,
-      intersectPoint
-    );
+    const hit = raycaster.ray.intersectPlane(dragPlaneRef.current, intersectPoint);
+
+    if (!hit) return;
 
     // Build new position: snap movable axes, keep fixed axis from original
     const raw = {
