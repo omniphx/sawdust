@@ -68,6 +68,7 @@ const IGNORED_AXIS: Record<CameraView, 'x' | 'y' | 'z' | null> = {
   back: 'z',
   left: 'x',
   right: 'x',
+  custom: null,
 };
 
 /**

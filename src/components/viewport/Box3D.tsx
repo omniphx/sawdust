@@ -7,12 +7,13 @@ import type { CameraView } from './Viewport';
 
 // Per-view drag config: which plane to drag on and which axis stays fixed
 const DRAG_PLANE_CONFIG: Record<CameraView, { normal: [number, number, number]; fixedAxis: 'x' | 'y' | 'z' }> = {
-  iso:   { normal: [0, 1, 0], fixedAxis: 'y' },
-  top:   { normal: [0, 1, 0], fixedAxis: 'y' },
-  front: { normal: [0, 0, 1], fixedAxis: 'z' },
-  back:  { normal: [0, 0, 1], fixedAxis: 'z' },
-  left:  { normal: [1, 0, 0], fixedAxis: 'x' },
-  right: { normal: [1, 0, 0], fixedAxis: 'x' },
+  iso:    { normal: [0, 1, 0], fixedAxis: 'y' },
+  top:    { normal: [0, 1, 0], fixedAxis: 'y' },
+  front:  { normal: [0, 0, 1], fixedAxis: 'z' },
+  back:   { normal: [0, 0, 1], fixedAxis: 'z' },
+  left:   { normal: [1, 0, 0], fixedAxis: 'x' },
+  right:  { normal: [1, 0, 0], fixedAxis: 'x' },
+  custom: { normal: [0, 1, 0], fixedAxis: 'y' },
 };
 
 interface Box3DProps {

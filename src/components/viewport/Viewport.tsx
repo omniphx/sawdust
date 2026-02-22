@@ -1,7 +1,7 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
-import { Vector3, OrthographicCamera, Plane, Raycaster, Vector2, Euler } from 'three';
+import { Vector3, OrthographicCamera, Plane, Raycaster, Vector2, Euler, MOUSE } from 'three';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import { IsometricCamera } from './IsometricCamera';
 import { Grid } from './Grid';
@@ -16,7 +16,7 @@ const MIN_ZOOM = 20;
 const MAX_ZOOM = 1500;
 const DRAG_THRESHOLD = 5; // pixels
 
-export type CameraView = 'iso' | 'front' | 'back' | 'left' | 'right' | 'top';
+export type CameraView = 'iso' | 'front' | 'back' | 'left' | 'right' | 'top' | 'custom';
 
 const CAMERA_DISTANCE = 20;
 const ISO_ANGLE = Math.PI * 5 / 4; // 225 degrees
@@ -36,6 +36,7 @@ const VIEW_PRESETS: Record<CameraView, { position: [number, number, number]; up:
   left: { position: [-CAMERA_DISTANCE, 0, 0], up: [0, 1, 0] },
   right: { position: [CAMERA_DISTANCE, 0, 0], up: [0, 1, 0] },
   top: { position: [0, CAMERA_DISTANCE, 0], up: [0, 0, -1] },
+  custom: { position: [0, 0, 0], up: [0, 1, 0] }, // placeholder, not applied
 };
 
 // Labels use user-facing axis names
@@ -46,7 +47,11 @@ const VIEW_LABELS: Record<CameraView, string> = {
   left: 'Left',
   right: 'Right',
   top: 'Top',
+  custom: '',
 };
+
+// Preset views shown as buttons (excludes 'custom')
+const PRESET_VIEWS: CameraView[] = ['iso', 'front', 'back', 'left', 'right', 'top'];
 
 function CameraViewController({
   view,
@@ -64,6 +69,9 @@ function CameraViewController({
       initializedRef.current = true;
       return;
     }
+
+    // Custom view is user-controlled via orbit rotation; don't apply a preset
+    if (view === 'custom') return;
 
     const preset = VIEW_PRESETS[view];
     const target = controlsRef.current?.target ?? new Vector3(0, 0, 0);
@@ -188,12 +196,13 @@ function TrackpadHandler({ controlsRef }: { controlsRef: React.RefObject<OrbitCo
 
 // Plane normals for measure raycasting per view
 const MEASURE_PLANE_CONFIG: Record<CameraView, [number, number, number]> = {
-  iso:   [0, 1, 0],
-  top:   [0, 1, 0],
-  front: [0, 0, 1],
-  back:  [0, 0, 1],
-  left:  [1, 0, 0],
-  right: [1, 0, 0],
+  iso:    [0, 1, 0],
+  top:    [0, 1, 0],
+  front:  [0, 0, 1],
+  back:   [0, 0, 1],
+  left:   [1, 0, 0],
+  right:  [1, 0, 0],
+  custom: [0, 1, 0],
 };
 
 interface ViewportProps {
@@ -415,6 +424,7 @@ export function Viewport({ isMeasuring = false }: ViewportProps) {
     <div
       ref={containerRef}
       className={`flex-1 bg-sky-50 relative ${isMeasuring ? 'cursor-crosshair' : ''}`}
+      onContextMenu={(e) => e.preventDefault()}
       onMouseDown={handleMarqueeMouseDown}
       onMouseMove={(e) => {
         handleMarqueeMouseMove(e);
@@ -435,7 +445,7 @@ export function Viewport({ isMeasuring = false }: ViewportProps) {
         className="absolute bottom-4 left-4 z-10 flex gap-1"
         onMouseDown={(e) => e.stopPropagation()}
       >
-        {(Object.keys(VIEW_LABELS) as CameraView[]).map((key) => (
+        {PRESET_VIEWS.map((key) => (
           <button
             key={key}
             onClick={() => setCameraView(key)}
@@ -455,11 +465,15 @@ export function Viewport({ isMeasuring = false }: ViewportProps) {
         <CameraViewController view={cameraView} controlsRef={controlsRef} />
         <OrbitControls
           ref={controlsRef}
-          enableRotate={false}
-          enablePan={true}
+          enableRotate={true}
+          enablePan={false}
           enableZoom={false}
+          mouseButtons={{ RIGHT: MOUSE.ROTATE }}
           minZoom={MIN_ZOOM}
           maxZoom={MAX_ZOOM}
+          onStart={() => {
+            if (cameraView !== 'custom') setCameraView('custom');
+          }}
         />
         <TrackpadHandler controlsRef={controlsRef} />
         <hemisphereLight args={['#b0d0ff', '#806040', 0.6]} />
