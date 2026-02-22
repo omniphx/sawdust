@@ -1,6 +1,6 @@
 import { v4 as uuid } from 'uuid';
 import { Box, BoxCut, CutFace } from '../../types';
-import { DimensionInput } from './DimensionInput';
+import { metersToDisplayUnit, displayUnitToMeters, getDisplayUnitLabel } from '../../core/units';
 import { UnitSystem } from '../../types';
 
 const FACE_LABELS: Record<CutFace, string> = {
@@ -109,14 +109,22 @@ export function CutsSection({ box, unitSystem, onUpdateCuts }: CutsSectionProps)
             </button>
           </div>
           {cut.depth !== undefined && (
-            <div className="ml-12 mb-2">
-              <DimensionInput
-                label="Depth"
-                value={cut.depth}
-                unitSystem={unitSystem}
-                onChange={(v) => updateCut(cut.id, { depth: v })}
+            <div className="flex items-center gap-2 mb-2">
+              <label className="text-slate-500 text-xs w-10">Depth</label>
+              <input
+                type="number"
+                value={parseFloat(metersToDisplayUnit(cut.depth, unitSystem).toFixed(3))}
                 min={0.001}
+                step={0.01}
+                onChange={(e) => {
+                  const v = parseFloat(e.target.value);
+                  if (!isNaN(v) && v > 0) {
+                    updateCut(cut.id, { depth: displayUnitToMeters(v, unitSystem) });
+                  }
+                }}
+                className="w-14 px-2 py-1 bg-white border border-slate-300 rounded-lg text-slate-800 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400"
               />
+              <span className="text-slate-400 text-xs">{getDisplayUnitLabel(unitSystem)}</span>
             </div>
           )}
 
