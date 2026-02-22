@@ -14,7 +14,7 @@ npm run preview    # Preview production build
 
 ## Architecture
 
-OpenCAD is a simple CAD web app for designing 3D structures with material labeling and bill of materials output.
+Sawdust is a construction planning web app for designing 3D structures with material labeling and bill of materials output.
 
 - **Entry Point:** `src/main.tsx` renders the React app
 - **State Management:** React Context (`src/store/projectStore.tsx`) holds project state

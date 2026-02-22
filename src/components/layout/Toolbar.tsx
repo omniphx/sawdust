@@ -58,7 +58,7 @@ export function Toolbar({ onToggleComponentLibrary, showComponentLibrary, isMeas
 
   return (
     <div className="h-14 bg-white border-b border-slate-200 shadow-sm flex items-center px-4 gap-4">
-      <h1 className="text-slate-800 font-bold text-lg tracking-tight">OpenCAD</h1>
+      <h1 className="text-slate-800 font-bold text-lg tracking-tight">Sawdust</h1>
 
       {isBuilderMode && (
         <span className="px-2 py-0.5 bg-amber-400 text-amber-900 text-xs font-semibold rounded-full">

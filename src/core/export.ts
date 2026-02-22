@@ -1,7 +1,7 @@
 import { Project, ComponentTemplate, Box } from '../types';
 import { migrateRotation } from './rotation';
 
-export interface OpenCADExport {
+export interface SawdustExport {
   version: 1;
   exportedAt: string;
   project: Project;
@@ -12,7 +12,7 @@ export function exportProject(
   project: Project,
   components: ComponentTemplate[],
 ): void {
-  const data: OpenCADExport = {
+  const data: SawdustExport = {
     version: 1,
     exportedAt: new Date().toISOString(),
     project,
@@ -25,18 +25,18 @@ export function exportProject(
 
   const a = document.createElement('a');
   a.href = url;
-  a.download = `${project.name.replace(/[^a-zA-Z0-9_-]/g, '_')}.opencad.json`;
+  a.download = `${project.name.replace(/[^a-zA-Z0-9_-]/g, '_')}.sawdust.json`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
 
-export function pickAndParseImportFile(): Promise<OpenCADExport> {
+export function pickAndParseImportFile(): Promise<SawdustExport> {
   return new Promise((resolve, reject) => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.json,.opencad.json';
+    input.accept = '.json,.sawdust.json';
 
     input.onchange = () => {
       const file = input.files?.[0];
@@ -51,7 +51,7 @@ export function pickAndParseImportFile(): Promise<OpenCADExport> {
           const data = JSON.parse(reader.result as string);
 
           if (!data.version || !data.project || !Array.isArray(data.project.boxes)) {
-            reject(new Error('Invalid OpenCAD file format'));
+            reject(new Error('Invalid Sawdust file format'));
             return;
           }
 
@@ -70,7 +70,7 @@ export function pickAndParseImportFile(): Promise<OpenCADExport> {
             }
           }
 
-          resolve(data as OpenCADExport);
+          resolve(data as SawdustExport);
         } catch {
           reject(new Error('Failed to parse file as JSON'));
         }

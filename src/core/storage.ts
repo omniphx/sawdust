@@ -2,7 +2,7 @@ import Dexie, { type EntityTable } from 'dexie';
 import { Project, ComponentTemplate } from '../types';
 import { migrateRotation } from './rotation';
 
-const db = new Dexie('OpenCAD') as Dexie & {
+const db = new Dexie('Sawdust') as Dexie & {
   projects: EntityTable<Project, 'id'>;
   components: EntityTable<ComponentTemplate, 'id'>;
 };
