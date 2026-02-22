@@ -1,10 +1,12 @@
-import { Box, BOMEntry, UnitType } from '../types';
-import { getMaterialById } from './materials';
+import { Box, BOMEntry, UnitType, PurchaseEntry, PurchasePiece, UnitSystem } from '../types';
+import { getMaterialById, STANDARD_PURCHASE_SIZES } from './materials';
 import {
   calculateBoardFeet,
   squareMetersToFeet,
   cubicMetersToFeet,
   metersToLinearFeet,
+  metersToDisplayUnit,
+  getDisplayUnitLabel,
 } from './units';
 
 function getUnitLabel(unitType: UnitType): string {
@@ -80,4 +82,83 @@ export function calculateBOM(boxes: Box[]): BOMEntry[] {
   return Array.from(bomMap.values()).sort((a, b) =>
     a.materialName.localeCompare(b.materialName)
   );
+}
+
+const SHEET_MATERIAL_IDS = new Set(['plywood-3-4', 'plywood-1-2']);
+
+export function calculatePurchaseList(
+  boxes: Box[],
+  unitSystem: UnitSystem,
+  customSizes?: Record<string, number>,
+): PurchaseEntry[] {
+  // Group boxes by materialId
+  const groups = new Map<string, Box[]>();
+  for (const box of boxes) {
+    if (!groups.has(box.materialId)) {
+      groups.set(box.materialId, []);
+    }
+    groups.get(box.materialId)!.push(box);
+  }
+
+  const entries: PurchaseEntry[] = [];
+  const uLabel = getDisplayUnitLabel(unitSystem);
+
+  for (const [materialId, materialBoxes] of groups) {
+    const material = getMaterialById(materialId);
+    if (!material) continue;
+
+    // Skip non-applicable materials
+    if (materialId === 'concrete' || materialId === 'heater') continue;
+
+    const standardLength = customSizes?.[materialId] ?? STANDARD_PURCHASE_SIZES[materialId];
+    if (standardLength == null) continue;
+
+    const isSheet = SHEET_MATERIAL_IDS.has(materialId);
+
+    // Build standard size label
+    const stdDisplay = parseFloat(metersToDisplayUnit(standardLength, unitSystem).toFixed(2));
+    let standardSizeLabel: string;
+    if (isSheet) {
+      // Sheet goods: show width × depth (e.g. "4 × 8 ft")
+      const sheetWidth = material.defaultDimensions
+        ? parseFloat(metersToDisplayUnit(material.defaultDimensions.width, unitSystem).toFixed(2))
+        : stdDisplay;
+      standardSizeLabel = `${sheetWidth} × ${stdDisplay} ${uLabel} sheet`;
+    } else {
+      standardSizeLabel = `${stdDisplay} ${uLabel}`;
+    }
+
+    const pieces: PurchasePiece[] = materialBoxes.map((box) => {
+      const dims = [box.dimensions.width, box.dimensions.height, box.dimensions.depth];
+      const longestDim = Math.max(...dims);
+
+      let oversized: boolean;
+      if (isSheet) {
+        // For sheet goods, check the two largest face dimensions against the sheet
+        const sorted = [...dims].sort((a, b) => b - a);
+        const sheetWidth = material.defaultDimensions?.width ?? standardLength;
+        oversized = sorted[0] > standardLength + 0.001 || sorted[1] > sheetWidth + 0.001;
+      } else {
+        oversized = longestDim > standardLength + 0.001;
+      }
+
+      return {
+        boxId: box.id,
+        boxLabel: box.label || material.name,
+        pieceLength: longestDim,
+        oversized,
+      };
+    });
+
+    entries.push({
+      materialId,
+      materialName: material.name,
+      color: material.color,
+      boardsNeeded: pieces.length, // 1 piece = 1 board
+      standardSizeLabel,
+      pieces,
+    });
+  }
+
+  return entries.sort((a, b) => a.materialName.localeCompare(b.materialName));
 }

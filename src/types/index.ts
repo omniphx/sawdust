@@ -36,6 +36,22 @@ export interface BOMEntry {
   unit: string;
 }
 
+export interface PurchasePiece {
+  boxId: string;
+  boxLabel: string;
+  pieceLength: number; // meters (longest dimension, or face dims for sheet goods)
+  oversized: boolean;
+}
+
+export interface PurchaseEntry {
+  materialId: string;
+  materialName: string;
+  color: string;
+  boardsNeeded: number;
+  standardSizeLabel: string;
+  pieces: PurchasePiece[];
+}
+
 export interface ComponentTemplate {
   id: string;
   name: string;

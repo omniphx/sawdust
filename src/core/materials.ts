@@ -78,6 +78,32 @@ export const DEFAULT_MATERIALS: Material[] = [
   },
 ];
 
+// Helper: feet to meters (local to this file)
+const _FT = 0.3048;
+const _IN = 0.0254;
+
+// Standard purchase sizes per material (in meters)
+// For sheet goods, this represents the sheet dimensions (width × depth)
+export const STANDARD_PURCHASE_SIZES: Record<string, number> = {
+  '2x4-lumber': 8 * _FT,
+  '2x6-lumber': 8 * _FT,
+  '4x4-post': 8 * _FT,
+  'plywood-3-4': 8 * _FT,   // 4'×8' sheet (depth = 8ft)
+  'plywood-1-2': 8 * _FT,   // 4'×8' sheet (depth = 8ft)
+  'cedar-boards': 8 * _FT,
+  'insulation': 93 * _IN,    // 93" length
+  'trim': 8 * _FT,
+};
+
+// Common purchase length options for dropdown (in meters), with labels
+export const PURCHASE_LENGTH_OPTIONS = [
+  { label: "6 ft", meters: 6 * _FT },
+  { label: "8 ft", meters: 8 * _FT },
+  { label: "10 ft", meters: 10 * _FT },
+  { label: "12 ft", meters: 12 * _FT },
+  { label: "16 ft", meters: 16 * _FT },
+];
+
 export function getMaterialById(id: string): Material | undefined {
   return DEFAULT_MATERIALS.find(m => m.id === id);
 }
