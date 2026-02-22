@@ -15,15 +15,6 @@ const DRAG_PLANE_CONFIG: Record<CameraView, { normal: [number, number, number]; 
   right: { normal: [1, 0, 0], fixedAxis: 'x' },
 };
 
-function groupIdToColor(groupId: string): string {
-  let hash = 0;
-  for (let i = 0; i < groupId.length; i++) {
-    hash = (hash * 31 + groupId.charCodeAt(i)) | 0;
-  }
-  const hue = ((hash % 360) + 360) % 360;
-  return `hsl(${hue}, 80%, 50%)`;
-}
-
 interface Box3DProps {
   box: Box;
   allBoxes: Box[];
@@ -263,17 +254,6 @@ export function Box3D({ box, allBoxes, isSelected, selectedBoxIds, cameraView, o
           opacity={box.hidden ? 0.15 : 1}
         />
       </lineSegments>
-
-      {/* Group indicator: colored outline slightly scaled up */}
-      {box.groupId && (
-        <lineSegments position={[offsetX, offsetY, offsetZ]} scale={[1.03, 1.03, 1.03]}>
-          <edgesGeometry args={[edgeGeometry]} />
-          <lineBasicMaterial
-            color={groupIdToColor(box.groupId)}
-            linewidth={2}
-          />
-        </lineSegments>
-      )}
 
     </group>
   );
