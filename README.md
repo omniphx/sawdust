@@ -26,23 +26,16 @@ The MCP server lets AI assistants like Claude Desktop read and modify your OpenC
 
 ### Setup
 
-**1. Build the MCP server:**
-
-```bash
-cd mcp
-npm install
-npm run build
-```
-
-**2. Configure Claude Desktop** (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
+**Configure Claude Desktop** (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
 
 ```json
 {
   "mcpServers": {
     "opencad": {
-      "command": "node",
+      "command": "npx",
       "args": [
-        "/absolute/path/to/opencad-saffy/mcp/dist/index.js",
+        "-y",
+        "opencad-mcp",
         "--file",
         "/absolute/path/to/MyProject.opencad.json"
       ]
@@ -51,7 +44,7 @@ npm run build
 }
 ```
 
-Replace the paths with the actual locations on your machine. Restart Claude Desktop after saving.
+Replace the `--file` path with the location of your exported `.opencad.json` file. Restart Claude Desktop after saving.
 
 ### Usage
 

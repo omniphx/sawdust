@@ -4,6 +4,12 @@
   "description": "MCP server for OpenCAD project file manipulation",
   "type": "module",
   "main": "dist/index.js",
+  "bin": {
+    "opencad-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsx src/index.ts",
