@@ -9,9 +9,11 @@ interface ToolbarProps {
   showComponentLibrary?: boolean;
   isMeasuring?: boolean;
   onToggleMeasure?: () => void;
+  isWallMode?: boolean;
+  onToggleWallMode?: () => void;
 }
 
-export function Toolbar({ onToggleComponentLibrary, showComponentLibrary, isMeasuring, onToggleMeasure }: ToolbarProps) {
+export function Toolbar({ onToggleComponentLibrary, showComponentLibrary, isMeasuring, onToggleMeasure, isWallMode, onToggleWallMode }: ToolbarProps) {
   const { state, addBox, saveComponent, cancelComponentBuilder, toggleSnap, groupSelectedBoxes, ungroupSelectedBoxes, toggleLockSelectedBoxes, getSelectedBoxes, undo, redo, canUndo, canRedo, importProject } = useProjectStore();
   const { project, setUnitSystem } = useProject();
 
@@ -220,6 +222,18 @@ export function Toolbar({ onToggleComponentLibrary, showComponentLibrary, isMeas
             title="Measure (M)"
           >
             Measure
+          </button>
+
+          <button
+            onClick={onToggleWallMode}
+            className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+              isWallMode
+                ? 'bg-amber-500 text-white shadow-sm'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+            title="Auto-Stud (W)"
+          >
+            Auto-Stud
           </button>
         </>
       )}

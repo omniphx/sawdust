@@ -1,5 +1,7 @@
 export type CutFace = 'top' | 'bottom' | 'front' | 'back' | 'left' | 'right';
 
+export type { WallOpening, WallTargetFace, HeaderStyle } from './wall';
+
 export interface BoxCut {
   id: string;
   face: CutFace;    // Which face the cut starts from

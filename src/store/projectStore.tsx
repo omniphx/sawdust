@@ -68,7 +68,8 @@ type ProjectAction =
   | { type: "UNDO" }
   | { type: "REDO" }
   | { type: "HISTORY_BATCH_START" }
-  | { type: "HISTORY_BATCH_END" };
+  | { type: "HISTORY_BATCH_END" }
+  | { type: "ADD_BOXES"; boxes: Box[] };
 
 function createDefaultProject(): Project {
   return {
@@ -126,6 +127,12 @@ function projectReducer(
     case "ADD_BOX": {
       const boxes = [...getActiveBoxes(state), action.box];
       return setActiveBoxes(state, boxes);
+    }
+
+    case "ADD_BOXES": {
+      const boxes = [...getActiveBoxes(state), ...action.boxes];
+      const newState = setActiveBoxes(state, boxes);
+      return { ...newState, selectedBoxIds: action.boxes.map((b) => b.id) };
     }
 
     case "UPDATE_BOX": {
@@ -433,6 +440,7 @@ function projectReducer(
 // Actions that mutate boxes and should be tracked in undo history
 const BOX_MUTATING_ACTIONS = new Set<ProjectAction["type"]>([
   "ADD_BOX",
+  "ADD_BOXES",
   "DELETE_BOX",
   "UPDATE_BOX",
   "DUPLICATE_BOXES",
@@ -496,6 +504,7 @@ function projectReducerWithHistory(
 interface ProjectContextValue {
   state: ProjectState;
   addBox: (materialId?: string) => void;
+  addBoxes: (boxes: Box[]) => void;
   updateBox: (id: string, updates: Partial<Box>) => void;
   deleteBox: (id: string) => void;
   deleteSelectedBoxes: () => void;
@@ -638,6 +647,10 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     },
     [state],
   );
+
+  const addBoxes = useCallback((boxes: Box[]) => {
+    dispatch({ type: "ADD_BOXES", boxes });
+  }, []);
 
   const updateBox = useCallback((id: string, updates: Partial<Box>) => {
     dispatch({ type: "UPDATE_BOX", id, updates });
@@ -946,6 +959,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       value={{
         state,
         addBox,
+        addBoxes,
         updateBox,
         deleteBox,
         deleteSelectedBoxes,

@@ -5,12 +5,18 @@ import { Viewport } from './components/viewport/Viewport';
 import { PropertiesPanel } from './components/layout/PropertiesPanel';
 import { BOMPanel } from './components/layout/BOMPanel';
 import { ComponentLibraryPanel } from './components/layout/ComponentLibraryPanel';
+import { WallPanel } from './components/layout/WallPanel';
 import { Toast } from './components/ui/Toast';
+import { WallTargetFace, WallOpening } from './types/wall';
+import { generateStudWall } from './core/studs';
+import { v4 as uuid } from 'uuid';
 
 function AppContent() {
-  const { state, copySelectedBoxes, pasteBoxes, duplicateSelectedBoxes, deleteSelectedBoxes, dismissToast, undo, redo, canUndo, canRedo, groupSelectedBoxes, ungroupSelectedBoxes } = useProjectStore();
+  const { state, copySelectedBoxes, pasteBoxes, duplicateSelectedBoxes, deleteSelectedBoxes, dismissToast, undo, redo, canUndo, canRedo, groupSelectedBoxes, ungroupSelectedBoxes, addBoxes } = useProjectStore();
   const [showComponentLibrary, setShowComponentLibrary] = useState(false);
   const [isMeasuring, setIsMeasuring] = useState(false);
+  const [isWallMode, setIsWallMode] = useState(false);
+  const [wallTargetFace, setWallTargetFace] = useState<WallTargetFace | null>(null);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -54,16 +60,64 @@ function AppContent() {
           setIsMeasuring((v) => !v);
         }
       }
-      if (e.key === 'Escape' && isMeasuring) {
-        e.preventDefault();
-        setIsMeasuring(false);
+
+      if (e.key === 'w' || e.key === 'W') {
+        if (!e.metaKey && !e.ctrlKey) {
+          e.preventDefault();
+          setIsWallMode((v) => !v);
+          if (isWallMode) setWallTargetFace(null);
+        }
+      }
+
+      if (e.key === 'Escape') {
+        if (isMeasuring) {
+          e.preventDefault();
+          setIsMeasuring(false);
+        }
+        if (isWallMode) {
+          e.preventDefault();
+          setIsWallMode(false);
+          setWallTargetFace(null);
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [state.selectedBoxIds, state.clipboard, copySelectedBoxes, pasteBoxes, duplicateSelectedBoxes, deleteSelectedBoxes, undo, redo, canUndo, canRedo, groupSelectedBoxes, ungroupSelectedBoxes, isMeasuring]);
+  }, [state.selectedBoxIds, state.clipboard, copySelectedBoxes, pasteBoxes, duplicateSelectedBoxes, deleteSelectedBoxes, undo, redo, canUndo, canRedo, groupSelectedBoxes, ungroupSelectedBoxes, isMeasuring, isWallMode]);
 
   const isBuilderMode = state.mode === 'component-builder';
+
+  const handleWallFaceSelect = (face: WallTargetFace) => {
+    setWallTargetFace(face);
+  };
+
+  const handleGenerateStuds = (
+    studMaterialId: string,
+    plateMaterialId: string,
+    studSpacing: number,
+    doubleTopPlate: boolean,
+    openings: WallOpening[],
+  ) => {
+    if (!wallTargetFace) return;
+    const groupId = uuid();
+    const boxes = generateStudWall(
+      wallTargetFace,
+      studMaterialId,
+      plateMaterialId,
+      studSpacing,
+      doubleTopPlate,
+      openings,
+      groupId,
+    );
+    addBoxes(boxes);
+    setWallTargetFace(null);
+    setIsWallMode(false);
+  };
+
+  const handleCancelWall = () => {
+    setWallTargetFace(null);
+    setIsWallMode(false);
+  };
 
   return (
     <div className="h-screen flex flex-col bg-slate-100">
@@ -72,13 +126,32 @@ function AppContent() {
         showComponentLibrary={showComponentLibrary}
         isMeasuring={isMeasuring}
         onToggleMeasure={() => setIsMeasuring((v) => !v)}
+        isWallMode={isWallMode}
+        onToggleWallMode={() => {
+          setIsWallMode((v) => !v);
+          setWallTargetFace(null);
+        }}
       />
       <div className="flex-1 flex overflow-hidden relative">
-        <Viewport isMeasuring={isMeasuring} />
+        <Viewport
+          isMeasuring={isMeasuring}
+          isWallMode={isWallMode}
+          onWallFaceSelect={handleWallFaceSelect}
+        />
         <div className="absolute top-0 right-0 bottom-0 flex">
-          <PropertiesPanel />
-          {!isBuilderMode && showComponentLibrary && <ComponentLibraryPanel />}
-          {!isBuilderMode && <BOMPanel />}
+          {!isBuilderMode && wallTargetFace ? (
+            <WallPanel
+              target={wallTargetFace}
+              onGenerate={handleGenerateStuds}
+              onCancel={handleCancelWall}
+            />
+          ) : (
+            <>
+              <PropertiesPanel />
+              {!isBuilderMode && showComponentLibrary && <ComponentLibraryPanel />}
+              {!isBuilderMode && <BOMPanel />}
+            </>
+          )}
         </div>
       </div>
       <Toast message={state.toastMessage} onDismiss={dismissToast} />

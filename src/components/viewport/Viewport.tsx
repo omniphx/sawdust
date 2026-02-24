@@ -6,11 +6,13 @@ import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import { IsometricCamera } from './IsometricCamera';
 import { Grid } from './Grid';
 import { Box3D } from './Box3D';
+import { WallFaceHighlight } from './WallFaceHighlight';
 import { MeasureOverlay } from './MeasureOverlay';
 import { useProjectStore } from '../../store/projectStore';
 import { snapToGrid } from '../../core/units';
 import { findNearestSnapPoint, measureDistance } from '../../core/measureSnap';
 import { Box } from '../../types';
+import { WallTargetFace } from '../../types/wall';
 
 const MIN_ZOOM = 20;
 const MAX_ZOOM = 1500;
@@ -207,9 +209,11 @@ const MEASURE_PLANE_CONFIG: Record<CameraView, [number, number, number]> = {
 
 interface ViewportProps {
   isMeasuring?: boolean;
+  isWallMode?: boolean;
+  onWallFaceSelect?: (face: WallTargetFace) => void;
 }
 
-export function Viewport({ isMeasuring = false }: ViewportProps) {
+export function Viewport({ isMeasuring = false, isWallMode = false, onWallFaceSelect }: ViewportProps) {
   const { state, selectBoxes, toggleBoxSelection, updateBox, showToast, historyBatchStart, historyBatchEnd } = useProjectStore();
   const controlsRef = useRef<OrbitControlsImpl>(null);
   const cameraRef = useRef<OrthographicCamera | null>(null);
@@ -224,6 +228,33 @@ export function Viewport({ isMeasuring = false }: ViewportProps) {
   const [measurePointA, setMeasurePointA] = useState<Vector3 | null>(null);
   const [measurePointB, setMeasurePointB] = useState<Vector3 | null>(null);
   const [measureHover, setMeasureHover] = useState<Vector3 | null>(null);
+
+  // Wall mode state
+  const [hoveredWallFace, setHoveredWallFace] = useState<{ box: Box; faceNormal: { x: number; y: number; z: number } } | null>(null);
+
+  const handleWallFaceHover = useCallback((box: Box, faceNormal: { x: number; y: number; z: number }) => {
+    setHoveredWallFace({ box, faceNormal });
+  }, []);
+
+  const handleWallFaceClear = useCallback(() => {
+    setHoveredWallFace(null);
+  }, []);
+
+  const handleWallFaceClick = useCallback((box: Box, faceNormal: { x: number; y: number; z: number }) => {
+    // Determine faceAxis: if normal is along X, wall runs along Z; if normal is along Z, wall runs along X
+    const faceAxis: 'x' | 'z' = faceNormal.x !== 0 ? 'z' : 'x';
+    const face: WallTargetFace = {
+      sourceBoxId: box.id,
+      faceAxis,
+      wallStartX: box.position.x,
+      wallStartZ: box.position.z,
+      wallY: box.position.y,
+      wallLength: faceAxis === 'x' ? box.dimensions.width : box.dimensions.depth,
+      wallHeight: box.dimensions.height,
+      wallDepth: faceAxis === 'x' ? box.dimensions.depth : box.dimensions.width,
+    };
+    onWallFaceSelect?.(face);
+  }, [onWallFaceSelect]);
 
   const activeBoxes = state.mode === 'component-builder'
     ? (state.currentTemplate?.boxes ?? [])
@@ -323,8 +354,9 @@ export function Viewport({ isMeasuring = false }: ViewportProps) {
   const handleMarqueeMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     // Only start marquee on left click, and only on the container itself (not on UI overlays)
     if (e.button !== 0) return;
-    // Suppress marquee in measure mode
+    // Suppress marquee in measure mode or wall mode
     if (isMeasuring) return;
+    if (isWallMode) return;
     // If a box captured the pointer (R3F event fired first), skip marquee
     if (pointerCapturedByBox.current) return;
     const container = containerRef.current;
@@ -337,7 +369,7 @@ export function Viewport({ isMeasuring = false }: ViewportProps) {
     shiftHeld.current = e.shiftKey;
     setMarquee({ startX: x, startY: y, currentX: x, currentY: y });
     marqueeActive.current = false;
-  }, [isMeasuring]);
+  }, [isMeasuring, isWallMode]);
 
   const handleMarqueeMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     setMarquee((prev) => {
@@ -423,7 +455,7 @@ export function Viewport({ isMeasuring = false }: ViewportProps) {
   return (
     <div
       ref={containerRef}
-      className={`flex-1 bg-sky-50 relative ${isMeasuring ? 'cursor-crosshair' : ''}`}
+      className={`flex-1 bg-sky-50 relative ${isMeasuring || isWallMode ? 'cursor-crosshair' : ''}`}
       onContextMenu={(e) => e.preventDefault()}
       onMouseDown={handleMarqueeMouseDown}
       onMouseMove={(e) => {
@@ -500,6 +532,7 @@ export function Viewport({ isMeasuring = false }: ViewportProps) {
             selectedBoxIds={state.selectedBoxIds}
             cameraView={cameraView}
             isMeasuring={isMeasuring}
+            isWallMode={isWallMode}
             onToggleSelect={(id: string) => toggleBoxSelection(id)}
             onSelectGroup={(ids: string[]) => selectBoxes(ids)}
             onToggleSelectGroup={(ids: string[]) => {
@@ -521,8 +554,18 @@ export function Viewport({ isMeasuring = false }: ViewportProps) {
             pointerCapturedByBox={pointerCapturedByBox}
             onHistoryBatchStart={historyBatchStart}
             onHistoryBatchEnd={historyBatchEnd}
+            onWallFaceHover={handleWallFaceHover}
+            onWallFaceClear={handleWallFaceClear}
+            onWallFaceClick={handleWallFaceClick}
           />
         ))}
+
+        {isWallMode && hoveredWallFace && (
+          <WallFaceHighlight
+            box={hoveredWallFace.box}
+            faceNormal={hoveredWallFace.faceNormal}
+          />
+        )}
 
         {isMeasuring && (
           <MeasureOverlay

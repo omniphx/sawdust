@@ -25,6 +25,7 @@ interface Box3DProps {
   selectedBoxIds: string[];
   cameraView: CameraView;
   isMeasuring?: boolean;
+  isWallMode?: boolean;
   onToggleSelect: (id: string) => void;
   onSelectGroup: (ids: string[]) => void;
   onToggleSelectGroup: (ids: string[]) => void;
@@ -35,9 +36,12 @@ interface Box3DProps {
   pointerCapturedByBox: React.MutableRefObject<boolean>;
   onHistoryBatchStart: () => void;
   onHistoryBatchEnd: () => void;
+  onWallFaceHover?: (box: Box, faceNormal: { x: number; y: number; z: number }) => void;
+  onWallFaceClear?: () => void;
+  onWallFaceClick?: (box: Box, faceNormal: { x: number; y: number; z: number }) => void;
 }
 
-export function Box3D({ box, allBoxes, isSelected, selectedBoxIds, cameraView, isMeasuring, onToggleSelect, onSelectGroup, onToggleSelectGroup, onMove, onMoveSelected, snap, onShowToast, pointerCapturedByBox, onHistoryBatchStart, onHistoryBatchEnd }: Box3DProps) {
+export function Box3D({ box, allBoxes, isSelected, selectedBoxIds, cameraView, isMeasuring, isWallMode, onToggleSelect, onSelectGroup, onToggleSelectGroup, onMove, onMoveSelected, snap, onShowToast, pointerCapturedByBox, onHistoryBatchStart, onHistoryBatchEnd, onWallFaceHover, onWallFaceClear, onWallFaceClick }: Box3DProps) {
   const meshRef = useRef<Mesh>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState(new Vector3());
@@ -103,6 +107,8 @@ export function Box3D({ box, allBoxes, isSelected, selectedBoxIds, cameraView, i
   const handlePointerDown = (e: ThreeEvent<PointerEvent>) => {
     // In measure mode, let clicks propagate to the viewport's measure handler
     if (isMeasuring) return;
+    // In wall mode, face click is handled via onClick
+    if (isWallMode) return;
     e.stopPropagation();
     pointerCapturedByBox.current = true;
     if (e.shiftKey) {
@@ -185,6 +191,22 @@ export function Box3D({ box, allBoxes, isSelected, selectedBoxIds, cameraView, i
   };
 
   const handlePointerMove = (e: ThreeEvent<PointerEvent>) => {
+    if (isWallMode && !isDragging) {
+      const face = e.face;
+      if (face) {
+        const n = face.normal;
+        // Skip top/bottom faces (Y normals)
+        if (Math.abs(n.y) < 0.5) {
+          const clamped = {
+            x: Math.round(n.x),
+            y: Math.round(n.y),
+            z: Math.round(n.z),
+          };
+          onWallFaceHover?.(box, clamped);
+        }
+      }
+      return;
+    }
     if (!isDragging) return;
     e.stopPropagation();
 
@@ -269,9 +291,30 @@ export function Box3D({ box, allBoxes, isSelected, selectedBoxIds, cameraView, i
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
-        onPointerLeave={() => { handlePointerUp(); if (!isMeasuring) document.body.style.cursor = 'default'; }}
-        onPointerEnter={() => { if (!isMeasuring && !box.locked) document.body.style.cursor = 'move'; }}
-        onClick={(e: ThreeEvent<MouseEvent>) => { if (!isMeasuring) e.stopPropagation(); }}
+        onPointerLeave={() => {
+          if (isWallMode) { onWallFaceClear?.(); return; }
+          handlePointerUp();
+          if (!isMeasuring) document.body.style.cursor = 'default';
+        }}
+        onPointerEnter={() => {
+          if (isWallMode || isMeasuring) return;
+          if (!box.locked) document.body.style.cursor = 'move';
+        }}
+        onClick={(e: ThreeEvent<MouseEvent>) => {
+          if (isWallMode) {
+            e.stopPropagation();
+            const face = e.face;
+            if (face) {
+              const n = face.normal;
+              if (Math.abs(n.y) < 0.5) {
+                const clamped = { x: Math.round(n.x), y: Math.round(n.y), z: Math.round(n.z) };
+                onWallFaceClick?.(box, clamped);
+              }
+            }
+            return;
+          }
+          if (!isMeasuring) e.stopPropagation();
+        }}
       >
         {hasCuts ? (
           <Geometry ref={handleCsgRef}>
