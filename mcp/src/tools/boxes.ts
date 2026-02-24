@@ -154,4 +154,76 @@ export function registerBoxesTools(server: McpServer, filePath: string): void {
       return { content: [{ type: 'text', text: `Box "${id}" deleted` }] };
     },
   );
+
+  const boxSchema = z.object({
+    width: z.number().positive().describe('Width in meters'),
+    height: z.number().positive().describe('Height in meters'),
+    depth: z.number().positive().describe('Depth in meters'),
+    x: z.number().describe('X position in meters'),
+    y: z.number().describe('Y position in meters'),
+    z: z.number().describe('Z position in meters'),
+    materialId: z.string().describe('Material ID (see list_materials)'),
+    label: z.string().optional().describe('Optional label'),
+    groupId: z.string().optional().describe('Optional group ID'),
+  });
+
+  server.tool(
+    'bulk_add_boxes',
+    'Add multiple boxes to the project in a single operation. All dimensions and positions are in meters.',
+    { boxes: z.array(boxSchema).min(1).describe('Array of box definitions to add') },
+    async ({ boxes }) => {
+      const data = loadFile(filePath);
+
+      const newBoxes = boxes.map(({ width, height, depth, x, y, z: zPos, materialId, label, groupId }) => ({
+        id: uuidv4(),
+        position: { x, y, z: zPos },
+        dimensions: { width, height, depth },
+        rotation: { x: 0, y: 0, z: 0 },
+        materialId,
+        ...(label !== undefined && { label }),
+        ...(groupId !== undefined && { groupId }),
+      }));
+
+      data.project.boxes.push(...newBoxes);
+      saveFile(filePath, data);
+
+      return {
+        content: [{ type: 'text', text: JSON.stringify(newBoxes, null, 2) }],
+      };
+    },
+  );
+
+  server.tool(
+    'bulk_delete_boxes',
+    'Delete multiple boxes by their IDs in a single operation.',
+    { ids: z.array(z.string()).min(1).describe('Array of box UUIDs to delete') },
+    async ({ ids }) => {
+      const data = loadFile(filePath);
+
+      const notFound: string[] = [];
+      const deleted: string[] = [];
+
+      for (const id of ids) {
+        const index = data.project.boxes.findIndex((b) => b.id === id);
+        if (index === -1) {
+          notFound.push(id);
+        } else {
+          data.project.boxes.splice(index, 1);
+          deleted.push(id);
+        }
+      }
+
+      if (deleted.length > 0) {
+        saveFile(filePath, data);
+      }
+
+      const result: Record<string, unknown> = { deleted };
+      if (notFound.length > 0) result.notFound = notFound;
+
+      return {
+        content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+        isError: notFound.length > 0 && deleted.length === 0,
+      };
+    },
+  );
 }
