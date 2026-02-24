@@ -107,6 +107,7 @@ command = ["npx", "-y", "@omniphx/sawdust-mcp", "--file", "/path/to/MyProject.sa
 |------|-------------|
 | `get_project` | Get project name, unit system, and box count |
 | `set_project_name` | Rename the project |
+| `clear_project` | Remove all boxes from the project; optionally reset the name |
 | `list_materials` | List all available materials with IDs and unit types |
 | `list_boxes` | List all boxes, with optional `materialId` / `label` filters |
 | `get_box` | Get a single box by `id` or `label` |

@@ -34,4 +34,29 @@ export function registerProjectTools(server: McpServer, filePath: string): void 
       };
     },
   );
+
+  server.tool(
+    'clear_project',
+    'Remove all boxes from the project, leaving an empty canvas. Optionally reset the project name.',
+    {
+      resetName: z.boolean().optional().describe('If true, reset the project name to "Untitled Project"'),
+    },
+    async ({ resetName }) => {
+      const data = loadFile(filePath);
+      const removedCount = data.project.boxes.length;
+      data.project.boxes = [];
+      if (resetName) {
+        data.project.name = 'Untitled Project';
+      }
+      saveFile(filePath, data);
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Cleared ${removedCount} box${removedCount !== 1 ? 'es' : ''} from the project.${resetName ? ' Project name reset to "Untitled Project".' : ''}`,
+          },
+        ],
+      };
+    },
+  );
 }
