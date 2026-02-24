@@ -139,7 +139,7 @@ function AppContent() {
           onWallFaceSelect={handleWallFaceSelect}
         />
         <div className="absolute top-0 right-0 bottom-0 flex">
-          {!isBuilderMode && wallTargetFace ? (
+          {wallTargetFace ? (
             <WallPanel
               target={wallTargetFace}
               onGenerate={handleGenerateStuds}
