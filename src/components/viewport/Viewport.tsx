@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback, useState, useMemo } from 'react';
+import { useRef, useEffect, useCallback, useState } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { Vector3, OrthographicCamera, Plane, Raycaster, Vector2, Euler, MOUSE } from 'three';
@@ -8,12 +8,9 @@ import { Grid } from './Grid';
 import { Box3D } from './Box3D';
 import { WallFaceHighlight } from './WallFaceHighlight';
 import { MeasureOverlay } from './MeasureOverlay';
-import { AngledCutOverlay } from './AngledCutOverlay';
 import { useProjectStore } from '../../store/projectStore';
 import { snapToGrid } from '../../core/units';
 import { findNearestSnapPoint, measureDistance } from '../../core/measureSnap';
-import { createAngledCutBoard } from '../../core/angledCut';
-import { getMaterialById } from '../../core/materials';
 import { Box } from '../../types';
 import { WallTargetFace } from '../../types/wall';
 
@@ -213,13 +210,11 @@ const MEASURE_PLANE_CONFIG: Record<CameraView, [number, number, number]> = {
 interface ViewportProps {
   isMeasuring?: boolean;
   isWallMode?: boolean;
-  isAngledCut?: boolean;
-  angledCutMaterialId?: string;
   onWallFaceSelect?: (face: WallTargetFace) => void;
 }
 
-export function Viewport({ isMeasuring = false, isWallMode = false, isAngledCut = false, angledCutMaterialId = '2x4-lumber', onWallFaceSelect }: ViewportProps) {
-  const { state, selectBoxes, toggleBoxSelection, updateBox, addBoxes, showToast, historyBatchStart, historyBatchEnd } = useProjectStore();
+export function Viewport({ isMeasuring = false, isWallMode = false, onWallFaceSelect }: ViewportProps) {
+  const { state, selectBoxes, toggleBoxSelection, updateBox, showToast, historyBatchStart, historyBatchEnd } = useProjectStore();
   const controlsRef = useRef<OrbitControlsImpl>(null);
   const cameraRef = useRef<OrthographicCamera | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -233,10 +228,6 @@ export function Viewport({ isMeasuring = false, isWallMode = false, isAngledCut 
   const [measurePointA, setMeasurePointA] = useState<Vector3 | null>(null);
   const [measurePointB, setMeasurePointB] = useState<Vector3 | null>(null);
   const [measureHover, setMeasureHover] = useState<Vector3 | null>(null);
-
-  // Angled cut tool state
-  const [angledCutPointA, setAngledCutPointA] = useState<Vector3 | null>(null);
-  const [angledCutHover, setAngledCutHover] = useState<Vector3 | null>(null);
 
   // Wall mode state
   const [hoveredWallFace, setHoveredWallFace] = useState<{ box: Box; faceNormal: { x: number; y: number; z: number } } | null>(null);
@@ -292,14 +283,6 @@ export function Viewport({ isMeasuring = false, isWallMode = false, isAngledCut 
       setMeasureHover(null);
     }
   }, [isMeasuring]);
-
-  // Clear angled cut state when exiting mode
-  useEffect(() => {
-    if (!isAngledCut) {
-      setAngledCutPointA(null);
-      setAngledCutHover(null);
-    }
-  }, [isAngledCut]);
 
   /** Raycast a screen-space mouse event to the view plane, returning the world point */
   const raycastToViewPlane = useCallback((clientX: number, clientY: number): Vector3 | null => {
@@ -361,67 +344,9 @@ export function Viewport({ isMeasuring = false, isWallMode = false, isAngledCut 
     setMeasureHover(snapped ?? worldPoint);
   }, [raycastToViewPlane, activeBoxes, measurePointB]);
 
-  const handleAngledCutClick = useCallback((clientX: number, clientY: number) => {
-    const worldPoint = raycastToViewPlane(clientX, clientY);
-    if (!worldPoint) return;
-
-    const camera = cameraRef.current;
-    const container = containerRef.current;
-    if (!camera || !container) return;
-
-    const rect = container.getBoundingClientRect();
-    const snapped = findNearestSnapPoint(worldPoint, activeBoxes, camera, rect.width, rect.height);
-    const point = snapped ?? worldPoint;
-
-    if (!angledCutPointA) {
-      setAngledCutPointA(point);
-    } else {
-      const material = getMaterialById(angledCutMaterialId);
-      const crossSection = material?.defaultDimensions
-        ? { width: material.defaultDimensions.width, height: material.defaultDimensions.height }
-        : { width: 0.0381, height: 0.0889 };
-
-      const result = createAngledCutBoard(
-        { x: angledCutPointA.x, y: angledCutPointA.y, z: angledCutPointA.z },
-        { x: point.x, y: point.y, z: point.z },
-        angledCutMaterialId,
-        crossSection,
-      );
-
-      if (result) {
-        addBoxes([result.box]);
-        selectBoxes([result.box.id]);
-        showToast(`Angled brace: ${result.pitchDegrees.toFixed(1)}° miter`);
-      } else {
-        showToast('Points too close — no board created');
-      }
-
-      setAngledCutPointA(null);
-      setAngledCutHover(null);
-    }
-  }, [raycastToViewPlane, activeBoxes, angledCutPointA, angledCutMaterialId, addBoxes, selectBoxes, showToast]);
-
-  const handleAngledCutHover = useCallback((clientX: number, clientY: number) => {
-    const worldPoint = raycastToViewPlane(clientX, clientY);
-    if (!worldPoint) return;
-
-    const camera = cameraRef.current;
-    const container = containerRef.current;
-    if (!camera || !container) return;
-
-    const rect = container.getBoundingClientRect();
-    const snapped = findNearestSnapPoint(worldPoint, activeBoxes, camera, rect.width, rect.height);
-
-    if (!angledCutPointA) {
-      setAngledCutHover(snapped ?? null);
-    } else {
-      setAngledCutHover(snapped ?? worldPoint);
-    }
-  }, [raycastToViewPlane, activeBoxes, angledCutPointA]);
-
   const handleBackgroundClick = () => {
     // Only deselect if not in a marquee drag (marquee handles its own selection)
-    if (!marqueeActive.current && !isMeasuring && !isAngledCut) {
+    if (!marqueeActive.current && !isMeasuring) {
       selectBoxes([]);
     }
   };
@@ -429,10 +354,9 @@ export function Viewport({ isMeasuring = false, isWallMode = false, isAngledCut 
   const handleMarqueeMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     // Only start marquee on left click, and only on the container itself (not on UI overlays)
     if (e.button !== 0) return;
-    // Suppress marquee in measure mode, wall mode, or angled cut mode
+    // Suppress marquee in measure mode or wall mode
     if (isMeasuring) return;
     if (isWallMode) return;
-    if (isAngledCut) return;
     // If a box captured the pointer (R3F event fired first), skip marquee
     if (pointerCapturedByBox.current) return;
     const container = containerRef.current;
@@ -445,7 +369,7 @@ export function Viewport({ isMeasuring = false, isWallMode = false, isAngledCut 
     shiftHeld.current = e.shiftKey;
     setMarquee({ startX: x, startY: y, currentX: x, currentY: y });
     marqueeActive.current = false;
-  }, [isMeasuring, isWallMode, isAngledCut]);
+  }, [isMeasuring, isWallMode]);
 
   const handleMarqueeMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     setMarquee((prev) => {
@@ -528,32 +452,19 @@ export function Viewport({ isMeasuring = false, isWallMode = false, isAngledCut 
     ? measureDistance(measurePointA, measurePointB, cameraView)
     : null;
 
-  const angledCutPreview = useMemo(() => {
-    if (!angledCutPointA || !angledCutHover) return null;
-    const dx = angledCutHover.x - angledCutPointA.x;
-    const dy = angledCutHover.y - angledCutPointA.y;
-    const dz = angledCutHover.z - angledCutPointA.z;
-    const length = Math.sqrt(dx * dx + dy * dy + dz * dz);
-    const horizontalDist = Math.sqrt(dx * dx + dz * dz);
-    const pitchDeg = Math.abs(Math.atan2(dy, horizontalDist) * 180 / Math.PI);
-    return { length, pitchDeg };
-  }, [angledCutPointA, angledCutHover]);
-
   return (
     <div
       ref={containerRef}
-      className={`flex-1 bg-sky-50 relative ${isMeasuring || isWallMode || isAngledCut ? 'cursor-crosshair' : ''}`}
+      className={`flex-1 bg-sky-50 relative ${isMeasuring || isWallMode ? 'cursor-crosshair' : ''}`}
       onContextMenu={(e) => e.preventDefault()}
       onMouseDown={handleMarqueeMouseDown}
       onMouseMove={(e) => {
         handleMarqueeMouseMove(e);
         if (isMeasuring) handleMeasureHover(e.clientX, e.clientY);
-        if (isAngledCut) handleAngledCutHover(e.clientX, e.clientY);
       }}
       onMouseUp={handleMarqueeMouseUp}
       onClick={(e) => {
         if (isMeasuring) handleMeasureClick(e.clientX, e.clientY);
-        if (isAngledCut) handleAngledCutClick(e.clientX, e.clientY);
       }}
     >
       {marqueeStyle && (
@@ -622,7 +533,6 @@ export function Viewport({ isMeasuring = false, isWallMode = false, isAngledCut 
             cameraView={cameraView}
             isMeasuring={isMeasuring}
             isWallMode={isWallMode}
-            isAngledCut={isAngledCut}
             onToggleSelect={(id: string) => toggleBoxSelection(id)}
             onSelectGroup={(ids: string[]) => selectBoxes(ids)}
             onToggleSelectGroup={(ids: string[]) => {
@@ -664,16 +574,6 @@ export function Viewport({ isMeasuring = false, isWallMode = false, isAngledCut 
             hoverPoint={measureHover}
             distance={computedDistance}
             unitSystem={state.project.unitSystem}
-          />
-        )}
-
-        {isAngledCut && (
-          <AngledCutOverlay
-            pointA={angledCutPointA}
-            hoverPoint={angledCutHover}
-            unitSystem={state.project.unitSystem}
-            previewLength={angledCutPreview?.length ?? null}
-            previewAngle={angledCutPreview?.pitchDeg ?? null}
           />
         )}
       </Canvas>

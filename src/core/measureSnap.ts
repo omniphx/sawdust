@@ -1,31 +1,21 @@
-import { Vector3, Camera, Euler } from 'three';
+import { Vector3, Camera } from 'three';
 import type { Box } from '../types';
 import type { CameraView } from '../components/viewport/Viewport';
 
-/** Returns the 8 corner positions of a box in world space, accounting for rotation */
+/** Returns the 8 corner positions of a box in world space */
 export function getBoxCorners(box: Box): Vector3[] {
   const { x, y, z } = box.position;
   const { width: w, height: h, depth: d } = box.dimensions;
-
-  const localCorners = [
-    new Vector3(0, 0, 0),
-    new Vector3(w, 0, 0),
-    new Vector3(0, h, 0),
-    new Vector3(w, h, 0),
-    new Vector3(0, 0, d),
-    new Vector3(w, 0, d),
-    new Vector3(0, h, d),
-    new Vector3(w, h, d),
+  return [
+    new Vector3(x, y, z),
+    new Vector3(x + w, y, z),
+    new Vector3(x, y + h, z),
+    new Vector3(x + w, y + h, z),
+    new Vector3(x, y, z + d),
+    new Vector3(x + w, y, z + d),
+    new Vector3(x, y + h, z + d),
+    new Vector3(x + w, y + h, z + d),
   ];
-
-  if (box.rotation.x !== 0 || box.rotation.y !== 0 || box.rotation.z !== 0) {
-    const euler = new Euler(box.rotation.x, box.rotation.y, box.rotation.z, 'XYZ');
-    for (const v of localCorners) {
-      v.applyEuler(euler);
-    }
-  }
-
-  return localCorners.map((v) => new Vector3(x + v.x, y + v.y, z + v.z));
 }
 
 /**
