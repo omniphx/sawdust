@@ -1,11 +1,15 @@
 export type CutFace = 'top' | 'bottom' | 'front' | 'back' | 'left' | 'right';
 
+/** The adjacent face whose shared edge the blade enters from. */
+export type CutEdge = 'top' | 'bottom' | 'front' | 'back';
+
 export type { WallOpening, WallTargetFace, HeaderStyle } from './wall';
 
 export interface BoxCut {
   id: string;
   face: CutFace;    // Which face the cut starts from
   angle: number;    // Degrees (0 = square shoulder, 45 = miter). Range: 0–89
+  edge?: CutEdge;   // Adjacent face the blade enters from. Omit = default edge per face.
   depth?: number;   // Meters from the face. Omit = full through-cut
 }
 

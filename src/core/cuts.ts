@@ -1,4 +1,4 @@
-import { BoxCut, CutFace } from '../types';
+import { BoxCut, CutEdge, CutFace } from '../types';
 
 interface CutterProps {
   position: [number, number, number];
@@ -27,7 +27,7 @@ interface FaceConfig {
   normalDir: 1 | -1;
   // Which axis the cut pivots around
   pivotAxis: 'x' | 'y' | 'z';
-  // Sign for the rotation angle
+  // Sign for the rotation angle (when pivot is at the positive edge)
   rotationSign: 1 | -1;
 }
 
@@ -39,6 +39,43 @@ const FACE_CONFIG: Record<CutFace, FaceConfig> = {
   right:  { normalAxis: 'x', normalDir:  1, pivotAxis: 'y', rotationSign: -1 },
   left:   { normalAxis: 'x', normalDir: -1, pivotAxis: 'y', rotationSign:  1 },
 };
+
+/** Which two adjacent-face edges are available for each face. */
+export const FACE_EDGES: Record<CutFace, [CutEdge, CutEdge]> = {
+  top:    ['front', 'back'],
+  bottom: ['front', 'back'],
+  front:  ['top', 'bottom'],
+  back:   ['top', 'bottom'],
+  left:   ['front', 'back'],
+  right:  ['front', 'back'],
+};
+
+/** Default blade-entry edge when none is specified. */
+export const DEFAULT_EDGE: Record<CutFace, CutEdge> = {
+  top:    'back',
+  bottom: 'back',
+  front:  'bottom',
+  back:   'bottom',
+  left:   'back',
+  right:  'back',
+};
+
+/** Direction (+1 or -1) along the sweep axis for each edge name. */
+const EDGE_DIR: Record<CutEdge, 1 | -1> = {
+  front:  1,   // +Z
+  back:  -1,   // -Z
+  top:    1,   // +Y
+  bottom: -1,  // -Y
+};
+
+/**
+ * Returns the axis that is perpendicular to both given axes.
+ */
+function otherAxis(a: 'x' | 'y' | 'z', b: 'x' | 'y' | 'z'): 'x' | 'y' | 'z' {
+  if ((a === 'x' && b === 'y') || (a === 'y' && b === 'x')) return 'z';
+  if ((a === 'x' && b === 'z') || (a === 'z' && b === 'x')) return 'y';
+  return 'x';
+}
 
 /**
  * Rotates a 3D vector around the given axis by angle (radians).
@@ -62,9 +99,9 @@ function rotateVec3(
  * rotation, and scale for a cutter box that, when subtracted via CSG,
  * produces the correct angled cut.
  *
- * The cutter pivots around the face edge of the box (not its own center),
- * so the cut plane always starts exactly at the selected face regardless
- * of angle.
+ * The cutter pivots around the face edge opposite to where the blade enters,
+ * so the cut plane hinges at the intact edge: at 0° nothing is removed,
+ * at 45° a miter is cut from the entry edge inward.
  *
  * All coordinates are relative to the box center (how CSG geometry is centered).
  */
@@ -75,7 +112,6 @@ export function buildCutterProps(
   const { width: w, height: h, depth: d } = dimensions;
   const config = FACE_CONFIG[cut.face];
   const angleRad = (cut.angle * Math.PI) / 180;
-  const rotationAngle = config.rotationSign * angleRad;
 
   // Half-dimensions along each axis
   const halfDim: Record<string, number> = { x: w / 2, y: h / 2, z: d / 2 };
@@ -85,9 +121,22 @@ export function buildCutterProps(
 
   const axisIndex = { x: 0, y: 1, z: 2 }[config.normalAxis] as 0 | 1 | 2;
 
-  // Pivot point = center of the box face
+  // Determine blade entry edge and its direction along the sweep axis
+  const edge = cut.edge ?? DEFAULT_EDGE[cut.face];
+  const entryDir = EDGE_DIR[edge];
+
+  // Pivot sits at the edge OPPOSITE the blade entry (where the surface stays intact).
+  // The rotation sign flips when the pivot is on the negative edge.
+  const pivotEdgeSign = -entryDir as 1 | -1;
+  const rotationAngle = pivotEdgeSign * config.rotationSign * angleRad;
+
+  // Pivot point = edge of the box face.
   const pivot: [number, number, number] = [0, 0, 0];
   pivot[axisIndex] = config.normalDir * halfDim[config.normalAxis];
+
+  const edgeAxis = otherAxis(config.normalAxis, config.pivotAxis);
+  const edgeIndex = { x: 0, y: 1, z: 2 }[edgeAxis] as 0 | 1 | 2;
+  pivot[edgeIndex] = pivotEdgeSign * halfDim[edgeAxis];
 
   // For partial-depth cuts, shift pivot inward from the face
   if (cut.depth !== undefined) {

@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { loadFile, saveFile } from '../file.js';
 
 const CUT_FACES = ['top', 'bottom', 'front', 'back', 'left', 'right'] as const;
+const CUT_EDGES = ['top', 'bottom', 'front', 'back'] as const;
 
 export function registerCutsTools(server: McpServer, filePath: string): void {
   server.tool(
@@ -13,9 +14,10 @@ export function registerCutsTools(server: McpServer, filePath: string): void {
       boxId: z.string().describe('Box UUID'),
       face: z.enum(CUT_FACES).describe('Which face the cut starts from'),
       angle: z.number().min(0).max(89).describe('Cut angle in degrees (0=square, 45=miter)'),
+      edge: z.enum(CUT_EDGES).optional().describe('Adjacent face edge where the blade enters (e.g. "front" or "back" for top/bottom faces)'),
       depth: z.number().positive().optional().describe('Cut depth in meters from the face (omit for full through-cut)'),
     },
-    async ({ boxId, face, angle, depth }) => {
+    async ({ boxId, face, angle, edge, depth }) => {
       const data = loadFile(filePath);
       const box = data.project.boxes.find((b) => b.id === boxId);
 
@@ -29,6 +31,7 @@ export function registerCutsTools(server: McpServer, filePath: string): void {
         id: uuidv4(),
         face,
         angle,
+        ...(edge !== undefined && { edge }),
         ...(depth !== undefined && { depth }),
       };
 
@@ -47,9 +50,10 @@ export function registerCutsTools(server: McpServer, filePath: string): void {
       cutId: z.string().describe('Cut UUID'),
       face: z.enum(CUT_FACES).optional(),
       angle: z.number().min(0).max(89).optional(),
+      edge: z.enum(CUT_EDGES).optional().describe('Adjacent face edge where the blade enters'),
       depth: z.number().positive().optional(),
     },
-    async ({ boxId, cutId, face, angle, depth }) => {
+    async ({ boxId, cutId, face, angle, edge, depth }) => {
       const data = loadFile(filePath);
       const box = data.project.boxes.find((b) => b.id === boxId);
 
@@ -64,6 +68,7 @@ export function registerCutsTools(server: McpServer, filePath: string): void {
 
       if (face !== undefined) cut.face = face;
       if (angle !== undefined) cut.angle = angle;
+      if (edge !== undefined) cut.edge = edge;
       if (depth !== undefined) cut.depth = depth;
 
       saveFile(filePath, data);
