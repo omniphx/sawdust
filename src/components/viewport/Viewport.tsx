@@ -8,6 +8,7 @@ import { Grid } from './Grid';
 import { Box3D } from './Box3D';
 import { WallFaceHighlight } from './WallFaceHighlight';
 import { MeasureOverlay } from './MeasureOverlay';
+import { TriangleCalculator } from './TriangleCalculator';
 import { useProjectStore } from '../../store/projectStore';
 import { snapToGrid } from '../../core/units';
 import { findNearestSnapPoint, measureDistance } from '../../core/measureSnap';
@@ -474,22 +475,25 @@ export function Viewport({ isMeasuring = false, isWallMode = false, onWallFaceSe
         />
       )}
       <div
-        className="absolute bottom-4 left-4 z-10 flex gap-1"
+        className="absolute bottom-4 left-4 z-10 flex flex-col gap-2 items-start"
         onMouseDown={(e) => e.stopPropagation()}
       >
-        {PRESET_VIEWS.map((key) => (
-          <button
-            key={key}
-            onClick={() => setCameraView(key)}
-            className={`px-2 py-1 text-xs font-medium rounded transition-colors ${
-              cameraView === key
-                ? 'bg-blue-600 text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
-            }`}
-          >
-            {VIEW_LABELS[key]}
-          </button>
-        ))}
+        <TriangleCalculator />
+        <div className="flex gap-1">
+          {PRESET_VIEWS.map((key) => (
+            <button
+              key={key}
+              onClick={() => setCameraView(key)}
+              className={`px-2 py-1 text-xs font-medium rounded transition-colors ${
+                cameraView === key
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+              }`}
+            >
+              {VIEW_LABELS[key]}
+            </button>
+          ))}
+        </div>
       </div>
       <Canvas>
         <CameraExposer cameraRef={cameraRef} />
