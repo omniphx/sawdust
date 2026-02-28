@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 
 function evaluateMathExpression(expr: string): number {
   const sanitized = expr.replace(/\s/g, '');
@@ -37,6 +37,32 @@ function useMathInput(initial = '') {
   };
 
   return { raw, num, handleChange, handleCommit, handleKeyDown };
+}
+
+function CopyableValue({ value, label }: { value: string | null; label: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = useCallback(() => {
+    if (!value) return;
+    navigator.clipboard.writeText(value).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1200);
+    });
+  }, [value]);
+
+  if (!value) {
+    return <span className="font-mono text-gray-400">—</span>;
+  }
+
+  return (
+    <span
+      onClick={handleCopy}
+      title={`Click to copy ${label}`}
+      className="font-mono text-gray-800 cursor-pointer hover:text-blue-600 hover:underline select-none"
+    >
+      {copied ? <span className="text-green-600">copied!</span> : value}
+    </span>
+  );
 }
 
 export function TriangleCalculator() {
@@ -122,15 +148,15 @@ export function TriangleCalculator() {
           <div className="mt-2.5 pt-2 border-t border-gray-100 space-y-1">
             <div className="flex justify-between text-xs">
               <span className="font-bold text-blue-700">c</span>
-              <span className="font-mono text-gray-800">{c !== null ? fmt(c) : '—'}</span>
+              <CopyableValue value={c !== null ? fmt(c) : null} label="c" />
             </div>
             <div className="flex justify-between text-xs">
               <span className="text-gray-500">α (at b–c)</span>
-              <span className="font-mono text-gray-800">{alpha !== null ? `${fmt(alpha)}°` : '—'}</span>
+              <CopyableValue value={alpha !== null ? `${fmt(alpha)}°` : null} label="α" />
             </div>
             <div className="flex justify-between text-xs">
               <span className="text-gray-500">β (at a–c)</span>
-              <span className="font-mono text-gray-800">{beta !== null ? `${fmt(beta)}°` : '—'}</span>
+              <CopyableValue value={beta !== null ? `${fmt(beta)}°` : null} label="β" />
             </div>
           </div>
         </div>
