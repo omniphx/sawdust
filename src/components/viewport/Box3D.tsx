@@ -334,15 +334,15 @@ export function Box3D({ box, allBoxes, isSelected, selectedBoxIds, cameraView, i
         }}
       >
         {hasCuts ? (
-          <Geometry ref={handleCsgRef}>
+          <Geometry key={cutsKey} ref={handleCsgRef}>
             <Base>
               <boxGeometry args={[box.dimensions.width, box.dimensions.height, box.dimensions.depth]} />
             </Base>
             {box.cuts!.map((cut) => {
               const props = buildCutterProps(box.dimensions, cut);
               return (
-                <Subtraction key={cut.id} position={props.position} rotation={props.rotation} scale={props.scale}>
-                  <boxGeometry />
+                <Subtraction key={cut.id} position={props.position} rotation={props.rotation}>
+                  <boxGeometry args={[props.cutterSize, props.cutterSize, props.cutterSize]} />
                 </Subtraction>
               );
             })}
@@ -381,8 +381,8 @@ export function Box3D({ box, allBoxes, isSelected, selectedBoxIds, cameraView, i
               <Base>
                 <boxGeometry args={[box.dimensions.width, box.dimensions.height, box.dimensions.depth]} />
               </Base>
-              <Intersection position={props.position} rotation={props.rotation} scale={props.scale}>
-                <boxGeometry />
+              <Intersection position={props.position} rotation={props.rotation}>
+                <boxGeometry args={[props.cutterSize, props.cutterSize, props.cutterSize]} />
               </Intersection>
             </Geometry>
             <meshBasicMaterial color="#ef4444" transparent opacity={0.45} depthWrite={false} />

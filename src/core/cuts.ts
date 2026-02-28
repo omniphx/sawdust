@@ -3,7 +3,7 @@ import { BoxCut, CutEdge, CutFace } from '../types';
 interface CutterProps {
   position: [number, number, number];
   rotation: [number, number, number];
-  scale: [number, number, number];
+  cutterSize: number;
 }
 
 
@@ -167,6 +167,6 @@ export function buildCutterProps(
   return {
     position: pos,
     rotation: rot,
-    scale: [cutterSize, cutterSize, cutterSize],
+    cutterSize,
   };
 }

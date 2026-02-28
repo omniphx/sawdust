@@ -6,12 +6,12 @@ import { useCutFaceHover } from '../../store/cutFaceHoverContext';
 import { FACE_EDGES, DEFAULT_EDGE } from '../../core/cuts';
 
 const FACE_LABELS: Record<CutFace, string> = {
-  left: 'Left end',
-  right: 'Right end',
+  left: 'L',
+  right: 'R',
   top: 'Top',
-  bottom: 'Bottom',
-  front: 'Front',
-  back: 'Back',
+  bottom: 'Btm',
+  front: 'Fr',
+  back: 'Bk',
 };
 
 const EDGE_LABELS: Record<CutEdge, string> = {
@@ -21,8 +21,8 @@ const EDGE_LABELS: Record<CutEdge, string> = {
   bottom: 'Bottom',
 };
 
-const FACE_OPTIONS: CutFace[] = ['left', 'right', 'top', 'bottom', 'front', 'back'];
 const ANGLE_PRESETS = [45, 22.5, 0];
+const ALL_FACES: CutFace[] = ['top', 'left', 'front', 'right', 'back', 'bottom'];
 
 interface CutsSectionProps {
   box: Box;
@@ -59,25 +59,52 @@ export function CutsSection({ box, onUpdateCuts }: CutsSectionProps) {
         const activeEdge = cut.edge ?? DEFAULT_EDGE[cut.face];
         return (
           <div key={cut.id} className="mb-3 p-2 bg-slate-50 rounded-lg border border-slate-200">
-            {/* Face dropdown */}
-            <div className="flex items-center gap-2 mb-2">
-              <label className="text-slate-500 text-xs w-10">Face</label>
-              <select
-                value={cut.face}
-                onChange={(e) => {
-                  const face = e.target.value as CutFace;
-                  // Reset edge when face changes (edges differ per face)
-                  updateCut(cut.id, { face, edge: undefined });
-                  setHoveredCutFace({ boxId: box.id, face });
+            {/* Face selector — cube net layout */}
+            <div className="mb-2">
+              <label className="text-slate-500 text-xs mb-1 block">Face</label>
+              <div
+                className="grid gap-0.5"
+                style={{
+                  gridTemplateColumns: 'repeat(4, 1fr)',
+                  gridTemplateRows: 'repeat(3, 1fr)',
                 }}
-                onFocus={() => setHoveredCutFace({ boxId: box.id, face: cut.face })}
-                onBlur={() => setHoveredCutFace(null)}
-                className="flex-1 px-2 py-1 bg-white border border-slate-300 rounded-lg text-slate-800 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400"
+                onMouseEnter={() => setHoveredCutFace({ boxId: box.id, face: cut.face })}
+                onMouseLeave={() => setHoveredCutFace(null)}
               >
-                {FACE_OPTIONS.map((f) => (
-                  <option key={f} value={f}>{FACE_LABELS[f]}</option>
-                ))}
-              </select>
+                {ALL_FACES.map((face) => {
+                  // Cube net positions: top(1,0), left(0,1), front(1,1), right(2,1), back(3,1), bottom(1,2)
+                  const gridPos: Record<CutFace, { col: number; row: number }> = {
+                    top:    { col: 2, row: 1 },
+                    left:   { col: 1, row: 2 },
+                    front:  { col: 2, row: 2 },
+                    right:  { col: 3, row: 2 },
+                    back:   { col: 4, row: 2 },
+                    bottom: { col: 2, row: 3 },
+                  };
+                  const pos = gridPos[face];
+                  return (
+                    <button
+                      key={face}
+                      onClick={() => {
+                        updateCut(cut.id, { face, edge: undefined });
+                        setHoveredCutFace({ boxId: box.id, face });
+                      }}
+                      onMouseEnter={() => setHoveredCutFace({ boxId: box.id, face })}
+                      className={`px-1 py-1 text-xs rounded border transition-colors ${
+                        cut.face === face
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'bg-white hover:bg-slate-100 text-slate-600 border-slate-300'
+                      }`}
+                      style={{
+                        gridColumn: pos.col,
+                        gridRow: pos.row,
+                      }}
+                    >
+                      {FACE_LABELS[face]}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             {/* Edge selector — which edge the blade enters from */}
