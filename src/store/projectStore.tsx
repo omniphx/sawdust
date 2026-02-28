@@ -829,6 +829,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       }
       const templateBoxes = selectedBoxes.map((b) => ({
         ...b,
+        groupId: undefined,
         position: {
           x: b.position.x - minX,
           y: b.position.y - minY,

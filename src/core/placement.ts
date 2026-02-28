@@ -59,14 +59,16 @@ export function placeComponentBoxes(
     offsetX += templateWidth + spacing;
   }
 
-  // Generate new boxes with new IDs and offset positions
+  // Generate new boxes with new IDs, offset positions, and a shared groupId
   // Shift so template's minX aligns to offsetX, and center on Z
   const shiftX = offsetX - minX;
   const shiftZ = centerZ - (minZ + maxZ) / 2;
+  const groupId = template.boxes.length > 1 ? uuid() : undefined;
 
   return template.boxes.map((box) => ({
     ...box,
     id: uuid(),
+    groupId,
     position: {
       x: box.position.x + shiftX,
       y: box.position.y,
