@@ -41,7 +41,7 @@ export function TriangleCalculator() {
       {open && (
         <div className="border-t border-gray-100 p-3 w-52">
           {/* SVG diagram: right angle at bottom-left, a=vertical, b=horizontal, c=hypotenuse */}
-          <svg width="100%" viewBox="0 0 120 90" className="mb-3">
+          <svg width="100%" viewBox="0 0 120 96" className="mb-3">
             {/* Triangle fill */}
             <polygon points="10,80 110,80 10,10" fill="#eff6ff" stroke="#3b82f6" strokeWidth="1.5" />
             {/* Right-angle square marker */}
