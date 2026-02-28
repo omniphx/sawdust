@@ -5,6 +5,7 @@ import { Vector3, OrthographicCamera, Plane, Raycaster, Vector2, Euler, MOUSE } 
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import { IsometricCamera } from './IsometricCamera';
 import { Grid } from './Grid';
+import { AxisGizmo } from './AxisGizmo';
 import { Box3D } from './Box3D';
 import { WallFaceHighlight } from './WallFaceHighlight';
 import { MeasureOverlay } from './MeasureOverlay';
@@ -517,6 +518,7 @@ export function Viewport({ isMeasuring = false, isWallMode = false, onWallFaceSe
         <directionalLight position={[-8, 6, -3]} intensity={0.25} />
 
         <Grid unitSystem={state.project.unitSystem} />
+        <AxisGizmo />
 
         <mesh
           position={[0, -0.01, 0]}
