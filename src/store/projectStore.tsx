@@ -111,6 +111,7 @@ function projectReducer(
         dimensions: { ...b.dimensions },
         rotation: { ...b.rotation },
         cuts: b.cuts ? b.cuts.map(c => ({ ...c })) : undefined,
+        betaMiterCuts: b.betaMiterCuts ? b.betaMiterCuts.map(c => ({ ...c })) : undefined,
       }));
       return {
         ...state,
@@ -394,6 +395,7 @@ function projectReducer(
         dimensions: { ...b.dimensions },
         rotation: { ...b.rotation },
         cuts: b.cuts ? b.cuts.map(c => ({ ...c })) : undefined,
+        betaMiterCuts: b.betaMiterCuts ? b.betaMiterCuts.map(c => ({ ...c })) : undefined,
       }));
       return { ...state, historyBatchAnchor: anchor };
     }
@@ -410,6 +412,7 @@ function projectReducer(
           dimensions: { ...b.dimensions },
           rotation: { ...b.rotation },
           cuts: b.cuts ? b.cuts.map(c => ({ ...c })) : undefined,
+          betaMiterCuts: b.betaMiterCuts ? b.betaMiterCuts.map(c => ({ ...c })) : undefined,
         }));
         // Rewind history to anchor point, push anchor as "before" and current as "after"
         const anchorSnapshot = state.historyBatchAnchor;
@@ -479,6 +482,7 @@ function projectReducerWithHistory(
         dimensions: { ...b.dimensions },
         rotation: { ...b.rotation },
         cuts: b.cuts ? b.cuts.map(c => ({ ...c })) : undefined,
+        betaMiterCuts: b.betaMiterCuts ? b.betaMiterCuts.map(c => ({ ...c })) : undefined,
       }));
       // Truncate any redo history beyond current index
       const history = [
@@ -749,6 +753,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         },
         label: source.label ? `${source.label} (copy)` : undefined,
         cuts: source.cuts?.map(c => ({ ...c, id: uuid() })),
+        betaMiterCuts: source.betaMiterCuts?.map(c => ({ ...c, id: uuid() })),
       }));
     },
     [],

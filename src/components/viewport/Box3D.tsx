@@ -1,10 +1,16 @@
 import { useRef, useState, useMemo, useCallback } from 'react';
 import { ThreeEvent, useThree, useFrame } from '@react-three/fiber';
-import { Mesh, Vector3, BoxGeometry, Plane, BufferGeometry } from 'three';
+import { Mesh, Vector3, BoxGeometry, Plane, BufferGeometry, BufferAttribute } from 'three';
 import { Geometry, Base, Subtraction, Intersection, CSGGeometryRef } from '@react-three/csg';
-import { Box, CutFace } from '../../types';
+import { Box, BetaMiterDraft, CutFace } from '../../types';
 import { getMaterialColor } from '../../core/materials';
 import { buildCutterProps } from '../../core/cuts';
+import {
+  buildBetaMiterCutterProps,
+  faceFromNormal,
+  getBetaMiterEdgeLine,
+  nearestMiterEdgeFromFacePoint,
+} from '../../core/miterBeta';
 import { useCutFaceHover } from '../../store/cutFaceHoverContext';
 import type { CameraView } from './Viewport';
 
@@ -41,6 +47,8 @@ interface Box3DProps {
   cameraView: CameraView;
   isMeasuring?: boolean;
   isWallMode?: boolean;
+  isMiterMode?: boolean;
+  miterDraft?: BetaMiterDraft | null;
   onToggleSelect: (id: string) => void;
   onSelectGroup: (ids: string[]) => void;
   onToggleSelectGroup: (ids: string[]) => void;
@@ -54,9 +62,10 @@ interface Box3DProps {
   onWallFaceHover?: (box: Box, faceNormal: { x: number; y: number; z: number }) => void;
   onWallFaceClear?: () => void;
   onWallFaceClick?: (box: Box, faceNormal: { x: number; y: number; z: number }) => void;
+  onMiterEdgePick?: (draft: BetaMiterDraft) => void;
 }
 
-export function Box3D({ box, allBoxes, isSelected, selectedBoxIds, cameraView, isMeasuring, isWallMode, onToggleSelect, onSelectGroup, onToggleSelectGroup, onMove, onMoveSelected, snap, onShowToast, pointerCapturedByBox, onHistoryBatchStart, onHistoryBatchEnd, onWallFaceHover, onWallFaceClear, onWallFaceClick }: Box3DProps) {
+export function Box3D({ box, allBoxes, isSelected, selectedBoxIds, cameraView, isMeasuring, isWallMode, isMiterMode, miterDraft, onToggleSelect, onSelectGroup, onToggleSelectGroup, onMove, onMoveSelected, snap, onShowToast, pointerCapturedByBox, onHistoryBatchStart, onHistoryBatchEnd, onWallFaceHover, onWallFaceClear, onWallFaceClick, onMiterEdgePick }: Box3DProps) {
   const meshRef = useRef<Mesh>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState(new Vector3());
@@ -73,7 +82,9 @@ export function Box3D({ box, allBoxes, isSelected, selectedBoxIds, cameraView, i
   const { hoveredCutFace } = useCutFaceHover();
   const highlightFace = hoveredCutFace?.boxId === box.id ? hoveredCutFace.face : null;
 
-  const hasCuts = (box.cuts?.length ?? 0) > 0;
+  const hasLegacyCuts = (box.cuts?.length ?? 0) > 0;
+  const hasBetaCuts = (box.betaMiterCuts?.length ?? 0) > 0;
+  const hasCuts = hasLegacyCuts || hasBetaCuts;
   const csgRef = useRef<CSGGeometryRef>(null);
   const [csgEdgeGeometry, setCsgEdgeGeometry] = useState<BufferGeometry | null>(null);
   const csgNeedsEdgeUpdate = useRef(false);
@@ -96,7 +107,7 @@ export function Box3D({ box, allBoxes, isSelected, selectedBoxIds, cameraView, i
   });
 
   // Trigger edge update when cuts change
-  const cutsKey = JSON.stringify(box.cuts ?? []);
+  const cutsKey = JSON.stringify({ cuts: box.cuts ?? [], betaMiterCuts: box.betaMiterCuts ?? [] });
   useMemo(() => {
     if (hasCuts) {
       csgNeedsEdgeUpdate.current = true;
@@ -112,7 +123,7 @@ export function Box3D({ box, allBoxes, isSelected, selectedBoxIds, cameraView, i
     return new BoxGeometry(
       box.dimensions.width,
       box.dimensions.height,
-      box.dimensions.depth
+      box.dimensions.depth,
     );
   }, [box.dimensions.width, box.dimensions.height, box.dimensions.depth, csgEdgeGeometry]);
 
@@ -122,6 +133,37 @@ export function Box3D({ box, allBoxes, isSelected, selectedBoxIds, cameraView, i
     : [box.id];
 
   const handlePointerDown = (e: ThreeEvent<PointerEvent>) => {
+    if (isMiterMode) {
+      e.stopPropagation();
+      pointerCapturedByBox.current = true;
+      if (!isSelected) {
+        onSelectGroup([box.id]);
+      }
+      if (!meshRef.current || !e.face) {
+        pointerCapturedByBox.current = false;
+        return;
+      }
+      const face = faceFromNormal(e.face.normal);
+      if (!face) {
+        pointerCapturedByBox.current = false;
+        return;
+      }
+      const localPoint = meshRef.current.worldToLocal(e.point.clone());
+      const edge = nearestMiterEdgeFromFacePoint(
+        face,
+        { x: localPoint.x, y: localPoint.y, z: localPoint.z },
+        box.dimensions,
+      );
+      onMiterEdgePick?.({
+        boxId: box.id,
+        edge,
+        entryFace: face,
+        angle: miterDraft?.boxId === box.id ? miterDraft.angle : 45,
+      });
+      pointerCapturedByBox.current = false;
+      return;
+    }
+
     // In measure mode, let clicks propagate to the viewport's measure handler
     if (isMeasuring) return;
     // In wall mode, face click is handled via onClick
@@ -156,7 +198,7 @@ export function Box3D({ box, allBoxes, isSelected, selectedBoxIds, cameraView, i
 
     dragPlaneRef.current.set(
       new Vector3(...config.normal),
-      -dragPlaneY.current
+      -dragPlaneY.current,
     );
     raycaster.setFromCamera(pointer, camera);
     const intersectPoint = new Vector3();
@@ -257,11 +299,9 @@ export function Box3D({ box, allBoxes, isSelected, selectedBoxIds, cameraView, i
         y: newPos.y - draggedStartPos.y,
         z: newPos.z - draggedStartPos.z,
       };
-      // Zero delta on fixed axis
       delta[config.fixedAxis] = 0;
 
       const updates: Array<{ id: string; position: { x: number; y: number; z: number } }> = [];
-
       for (const [id, startPos] of dragStartPositions.current) {
         updates.push({
           id,
@@ -297,6 +337,24 @@ export function Box3D({ box, allBoxes, isSelected, selectedBoxIds, cameraView, i
   const offsetY = box.dimensions.height / 2;
   const offsetZ = box.dimensions.depth / 2;
 
+  const draftForThisBox = miterDraft?.boxId === box.id ? miterDraft : null;
+  const draftPreviewProps = draftForThisBox
+    ? buildBetaMiterCutterProps(box.dimensions, {
+        id: 'preview',
+        edge: draftForThisBox.edge,
+        entryFace: draftForThisBox.entryFace,
+        angle: draftForThisBox.angle,
+      })
+    : null;
+
+  const selectedEdgeGeometry = useMemo(() => {
+    if (!draftForThisBox) return null;
+    const { start, end } = getBetaMiterEdgeLine(draftForThisBox.edge, box.dimensions);
+    const geometry = new BufferGeometry();
+    geometry.setAttribute('position', new BufferAttribute(new Float32Array([...start, ...end]), 3));
+    return geometry;
+  }, [draftForThisBox, box.dimensions]);
+
   return (
     <group
       position={[box.position.x, box.position.y, box.position.z]}
@@ -310,14 +368,27 @@ export function Box3D({ box, allBoxes, isSelected, selectedBoxIds, cameraView, i
         onPointerUp={handlePointerUp}
         onPointerLeave={() => {
           if (isWallMode) { onWallFaceClear?.(); return; }
+          if (isMiterMode) {
+            pointerCapturedByBox.current = false;
+            document.body.style.cursor = 'default';
+            return;
+          }
           handlePointerUp();
           if (!isMeasuring) document.body.style.cursor = 'default';
         }}
         onPointerEnter={() => {
+          if (isMiterMode) {
+            document.body.style.cursor = 'crosshair';
+            return;
+          }
           if (isWallMode || isMeasuring) return;
           if (!box.locked) document.body.style.cursor = 'move';
         }}
         onClick={(e: ThreeEvent<MouseEvent>) => {
+          if (isMiterMode) {
+            e.stopPropagation();
+            return;
+          }
           if (isWallMode) {
             e.stopPropagation();
             const face = e.face;
@@ -338,11 +409,19 @@ export function Box3D({ box, allBoxes, isSelected, selectedBoxIds, cameraView, i
             <Base>
               <boxGeometry args={[box.dimensions.width, box.dimensions.height, box.dimensions.depth]} />
             </Base>
-            {box.cuts!.map((cut) => {
+            {box.cuts?.map((cut) => {
               const props = buildCutterProps(box.dimensions, cut);
               return (
                 <Subtraction key={cut.id} position={props.position} rotation={props.rotation}>
                   <boxGeometry args={[props.cutterSize, props.cutterSize, props.cutterSize]} />
+                </Subtraction>
+              );
+            })}
+            {box.betaMiterCuts?.map((cut) => {
+              const props = buildBetaMiterCutterProps(box.dimensions, cut);
+              return (
+                <Subtraction key={`beta-${cut.id}`} position={props.position} rotation={props.rotation} scale={props.scale}>
+                  <boxGeometry />
                 </Subtraction>
               );
             })}
@@ -372,7 +451,7 @@ export function Box3D({ box, allBoxes, isSelected, selectedBoxIds, cameraView, i
         />
       </lineSegments>
 
-      {/* Cut volume visualization — removed material shown in red */}
+      {/* Legacy cut volume visualization */}
       {box.cuts?.map((cut) => {
         const props = buildCutterProps(box.dimensions, cut);
         return (
@@ -389,6 +468,31 @@ export function Box3D({ box, allBoxes, isSelected, selectedBoxIds, cameraView, i
           </mesh>
         );
       })}
+
+      {/* Beta miter preview volume */}
+      {draftPreviewProps && (
+        <mesh position={[offsetX, offsetY, offsetZ]}>
+          <Geometry>
+            <Base>
+              <boxGeometry args={[box.dimensions.width, box.dimensions.height, box.dimensions.depth]} />
+            </Base>
+            <Intersection
+              position={draftPreviewProps.position}
+              rotation={draftPreviewProps.rotation}
+              scale={draftPreviewProps.scale}
+            >
+              <boxGeometry />
+            </Intersection>
+          </Geometry>
+          <meshBasicMaterial color="#dc2626" transparent opacity={0.5} depthWrite={false} />
+        </mesh>
+      )}
+
+      {selectedEdgeGeometry && (
+        <lineSegments position={[offsetX, offsetY, offsetZ]} geometry={selectedEdgeGeometry}>
+          <lineBasicMaterial color="#f59e0b" linewidth={3} />
+        </lineSegments>
+      )}
 
       {/* Cut face highlight — shown when a cut's face selector is focused */}
       {highlightFace && (() => {

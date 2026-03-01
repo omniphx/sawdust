@@ -2,6 +2,33 @@ export type CutFace = 'top' | 'bottom' | 'front' | 'back' | 'left' | 'right';
 
 /** The adjacent face whose shared edge the blade enters from. */
 export type CutEdge = 'top' | 'bottom' | 'front' | 'back';
+export type BetaMiterEdge =
+  | 'top-front'
+  | 'top-back'
+  | 'top-left'
+  | 'top-right'
+  | 'bottom-front'
+  | 'bottom-back'
+  | 'bottom-left'
+  | 'bottom-right'
+  | 'front-left'
+  | 'front-right'
+  | 'back-left'
+  | 'back-right';
+
+export interface BetaMiterCut {
+  id: string;
+  edge: BetaMiterEdge;
+  entryFace: CutFace;
+  angle: number;
+}
+
+export interface BetaMiterDraft {
+  boxId: string;
+  edge: BetaMiterEdge;
+  entryFace: CutFace;
+  angle: number;
+}
 
 export type { WallOpening, WallTargetFace, HeaderStyle } from './wall';
 
@@ -24,6 +51,7 @@ export interface Box {
   locked?: boolean;
   hidden?: boolean;
   cuts?: BoxCut[];
+  betaMiterCuts?: BetaMiterCut[];
 }
 
 export type UnitType = 'board_feet' | 'square_feet' | 'cubic_feet' | 'linear_feet' | 'count';

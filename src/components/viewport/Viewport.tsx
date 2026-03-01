@@ -13,7 +13,7 @@ import { TriangleCalculator } from './TriangleCalculator';
 import { useProjectStore } from '../../store/projectStore';
 import { snapToGrid } from '../../core/units';
 import { findNearestSnapPoint, measureDistance } from '../../core/measureSnap';
-import { Box } from '../../types';
+import { BetaMiterDraft, Box } from '../../types';
 import { WallTargetFace } from '../../types/wall';
 
 const MIN_ZOOM = 20;
@@ -212,10 +212,13 @@ const MEASURE_PLANE_CONFIG: Record<CameraView, [number, number, number]> = {
 interface ViewportProps {
   isMeasuring?: boolean;
   isWallMode?: boolean;
+  isMiterMode?: boolean;
+  miterDraft?: BetaMiterDraft | null;
+  onMiterEdgePick?: (draft: BetaMiterDraft) => void;
   onWallFaceSelect?: (face: WallTargetFace) => void;
 }
 
-export function Viewport({ isMeasuring = false, isWallMode = false, onWallFaceSelect }: ViewportProps) {
+export function Viewport({ isMeasuring = false, isWallMode = false, isMiterMode = false, miterDraft = null, onMiterEdgePick, onWallFaceSelect }: ViewportProps) {
   const { state, selectBoxes, toggleBoxSelection, updateBox, showToast, historyBatchStart, historyBatchEnd } = useProjectStore();
   const controlsRef = useRef<OrbitControlsImpl>(null);
   const cameraRef = useRef<OrthographicCamera | null>(null);
@@ -359,6 +362,7 @@ export function Viewport({ isMeasuring = false, isWallMode = false, onWallFaceSe
     // Suppress marquee in measure mode or wall mode
     if (isMeasuring) return;
     if (isWallMode) return;
+    if (isMiterMode) return;
     // If a box captured the pointer (R3F event fired first), skip marquee
     if (pointerCapturedByBox.current) return;
     const container = containerRef.current;
@@ -371,7 +375,7 @@ export function Viewport({ isMeasuring = false, isWallMode = false, onWallFaceSe
     shiftHeld.current = e.shiftKey;
     setMarquee({ startX: x, startY: y, currentX: x, currentY: y });
     marqueeActive.current = false;
-  }, [isMeasuring, isWallMode]);
+  }, [isMeasuring, isWallMode, isMiterMode]);
 
   const handleMarqueeMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     setMarquee((prev) => {
@@ -457,7 +461,7 @@ export function Viewport({ isMeasuring = false, isWallMode = false, onWallFaceSe
   return (
     <div
       ref={containerRef}
-      className={`flex-1 bg-sky-50 relative ${isMeasuring || isWallMode ? 'cursor-crosshair' : ''}`}
+      className={`flex-1 bg-sky-50 relative ${isMeasuring || isWallMode || isMiterMode ? 'cursor-crosshair' : ''}`}
       onContextMenu={(e) => e.preventDefault()}
       onMouseDown={handleMarqueeMouseDown}
       onMouseMove={(e) => {
@@ -539,6 +543,8 @@ export function Viewport({ isMeasuring = false, isWallMode = false, onWallFaceSe
             cameraView={cameraView}
             isMeasuring={isMeasuring}
             isWallMode={isWallMode}
+            isMiterMode={isMiterMode}
+            miterDraft={miterDraft}
             onToggleSelect={(id: string) => toggleBoxSelection(id)}
             onSelectGroup={(ids: string[]) => selectBoxes(ids)}
             onToggleSelectGroup={(ids: string[]) => {
@@ -563,6 +569,7 @@ export function Viewport({ isMeasuring = false, isWallMode = false, onWallFaceSe
             onWallFaceHover={handleWallFaceHover}
             onWallFaceClear={handleWallFaceClear}
             onWallFaceClick={handleWallFaceClick}
+            onMiterEdgePick={onMiterEdgePick}
           />
         ))}
 
