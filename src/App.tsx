@@ -9,6 +9,7 @@ import { ComponentLibraryPanel } from './components/layout/ComponentLibraryPanel
 import { WallPanel } from './components/layout/WallPanel';
 import { Toast } from './components/ui/Toast';
 import { WallTargetFace, WallOpening } from './types/wall';
+import { BetaMiterDraft } from './types';
 import { generateStudWall } from './core/studs';
 import { v4 as uuid } from 'uuid';
 
@@ -17,6 +18,8 @@ function AppContent() {
   const [showComponentLibrary, setShowComponentLibrary] = useState(false);
   const [isMeasuring, setIsMeasuring] = useState(false);
   const [isWallMode, setIsWallMode] = useState(false);
+  const [isMiterMode, setIsMiterMode] = useState(false);
+  const [miterDraft, setMiterDraft] = useState<BetaMiterDraft | null>(null);
   const [wallTargetFace, setWallTargetFace] = useState<WallTargetFace | null>(null);
 
   useEffect(() => {
@@ -63,6 +66,8 @@ function AppContent() {
             if (next) {
               setIsWallMode(false);
               setWallTargetFace(null);
+              setIsMiterMode(false);
+              setMiterDraft(null);
             }
             return next;
           });
@@ -76,8 +81,27 @@ function AppContent() {
             const next = !v;
             if (next) {
               setIsMeasuring(false);
+              setIsMiterMode(false);
+              setMiterDraft(null);
             } else {
               setWallTargetFace(null);
+            }
+            return next;
+          });
+        }
+      }
+
+      if (e.key === 'b' || e.key === 'B') {
+        if (!e.metaKey && !e.ctrlKey) {
+          e.preventDefault();
+          setIsMiterMode((v) => {
+            const next = !v;
+            if (next) {
+              setIsMeasuring(false);
+              setIsWallMode(false);
+              setWallTargetFace(null);
+            } else {
+              setMiterDraft(null);
             }
             return next;
           });
@@ -94,11 +118,23 @@ function AppContent() {
           setIsWallMode(false);
           setWallTargetFace(null);
         }
+        if (isMiterMode) {
+          e.preventDefault();
+          setIsMiterMode(false);
+          setMiterDraft(null);
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [state.selectedBoxIds, state.clipboard, copySelectedBoxes, pasteBoxes, duplicateSelectedBoxes, deleteSelectedBoxes, undo, redo, canUndo, canRedo, groupSelectedBoxes, ungroupSelectedBoxes, isMeasuring, isWallMode]);
+  }, [state.selectedBoxIds, state.clipboard, copySelectedBoxes, pasteBoxes, duplicateSelectedBoxes, deleteSelectedBoxes, undo, redo, canUndo, canRedo, groupSelectedBoxes, ungroupSelectedBoxes, isMeasuring, isWallMode, isMiterMode]);
+
+  useEffect(() => {
+    if (!miterDraft) return;
+    if (state.selectedBoxIds.length !== 1 || state.selectedBoxIds[0] !== miterDraft.boxId) {
+      setMiterDraft(null);
+    }
+  }, [state.selectedBoxIds, miterDraft]);
 
   const isBuilderMode = state.mode === 'component-builder';
 
@@ -147,6 +183,8 @@ function AppContent() {
             if (next) {
               setIsWallMode(false);
               setWallTargetFace(null);
+              setIsMiterMode(false);
+              setMiterDraft(null);
             }
             return next;
           });
@@ -157,6 +195,8 @@ function AppContent() {
             const next = !v;
             if (next) {
               setIsMeasuring(false);
+              setIsMiterMode(false);
+              setMiterDraft(null);
             } else {
               setWallTargetFace(null);
             }
@@ -168,6 +208,9 @@ function AppContent() {
         <Viewport
           isMeasuring={isMeasuring}
           isWallMode={isWallMode}
+          isMiterMode={isMiterMode}
+          miterDraft={miterDraft}
+          onMiterEdgePick={setMiterDraft}
           onWallFaceSelect={handleWallFaceSelect}
         />
         <div className="absolute top-0 right-0 bottom-0 flex">
@@ -179,7 +222,24 @@ function AppContent() {
             />
           ) : (
             <>
-              <PropertiesPanel />
+              <PropertiesPanel
+                isMiterMode={isMiterMode}
+                miterDraft={miterDraft}
+                onMiterDraftChange={setMiterDraft}
+                onToggleMiterMode={() => {
+                  setIsMiterMode((v) => {
+                    const next = !v;
+                    if (next) {
+                      setIsMeasuring(false);
+                      setIsWallMode(false);
+                      setWallTargetFace(null);
+                    } else {
+                      setMiterDraft(null);
+                    }
+                    return next;
+                  });
+                }}
+              />
               {!isBuilderMode && showComponentLibrary && <ComponentLibraryPanel />}
               {!isBuilderMode && <BOMPanel />}
             </>

@@ -645,7 +645,6 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         dimensions: defaultDim,
         rotation: { ...ZERO_ROTATION },
         materialId,
-        cuts: [{ id: uuid(), face: "left", angle: 45 }],
       };
       dispatch({ type: "ADD_BOX", box });
       dispatch({ type: "SELECT_BOXES", ids: [box.id] });

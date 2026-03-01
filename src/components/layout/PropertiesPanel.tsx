@@ -4,11 +4,20 @@ import { useProject } from '../../hooks/useProject';
 import { useProjectStore } from '../../store/projectStore';
 import { DimensionInput } from '../ui/DimensionInput';
 import { MaterialPicker } from '../ui/MaterialPicker';
-import { CutsSection } from '../ui/CutsSection';
+import { BETA_MITER_EDGE_LABELS } from '../../core/miterBeta';
 import { getMaterialById } from '../../core/materials';
 import { ZERO_ROTATION } from '../../core/rotation';
+import { BetaMiterDraft } from '../../types';
+import { v4 as uuid } from 'uuid';
 
-export function PropertiesPanel() {
+interface PropertiesPanelProps {
+  isMiterMode?: boolean;
+  miterDraft?: BetaMiterDraft | null;
+  onMiterDraftChange?: (draft: BetaMiterDraft | null) => void;
+  onToggleMiterMode?: () => void;
+}
+
+export function PropertiesPanel({ isMiterMode = false, miterDraft = null, onMiterDraftChange, onToggleMiterMode }: PropertiesPanelProps) {
   const { selectedBox, selectedBoxIds, updateBox, deleteBox } = useSelection();
   const { duplicateSelectedBoxes, deleteSelectedBoxes, toggleLockSelectedBoxes, toggleVisibilitySelectedBoxes, rotateSelectedBoxes, getSelectedBoxes, createComponentFromSelected, historyBatchStart, historyBatchEnd, groupSelectedBoxes, ungroupSelectedBoxes } = useProjectStore();
   const { project } = useProject();
@@ -243,6 +252,7 @@ export function PropertiesPanel() {
   }
 
   const material = getMaterialById(selectedBox.materialId);
+  const activeMiterDraft = miterDraft?.boxId === selectedBox.id ? miterDraft : null;
 
   const handleDimensionChange = (key: 'width' | 'height' | 'depth', value: number) => {
     updateBox(selectedBox.id, {
@@ -309,6 +319,29 @@ export function PropertiesPanel() {
 
   const handleLabelChange = (label: string) => {
     updateBox(selectedBox.id, { label: label || undefined });
+  };
+
+  const handleApplyMiterCut = () => {
+    if (!activeMiterDraft) return;
+    const existing = selectedBox.betaMiterCuts ?? [];
+    updateBox(selectedBox.id, {
+      betaMiterCuts: [
+        ...existing,
+        {
+          id: uuid(),
+          edge: activeMiterDraft.edge,
+          entryFace: activeMiterDraft.entryFace,
+          angle: activeMiterDraft.angle,
+        },
+      ],
+    });
+    onMiterDraftChange?.(null);
+  };
+
+  const handleRemoveMiterCut = (id: string) => {
+    updateBox(selectedBox.id, {
+      betaMiterCuts: (selectedBox.betaMiterCuts ?? []).filter((c) => c.id !== id),
+    });
   };
 
   return (
@@ -467,11 +500,104 @@ export function PropertiesPanel() {
           </div>
         </div>
 
-        {/* Miter Beta */}
-        <CutsSection
-          box={selectedBox}
-          onUpdateCuts={(cuts) => updateBox(selectedBox.id, { cuts })}
-        />
+        {/* Miter Saw Cut Beta */}
+        <div>
+          <h3 className="text-slate-600 text-sm font-medium mb-2">Miter Beta</h3>
+          <button
+            onClick={onToggleMiterMode}
+            className={`w-full px-3 py-1.5 mb-2 text-xs font-medium rounded-lg border transition-colors ${
+              isMiterMode
+                ? 'bg-rose-600 text-white border-rose-600'
+                : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+            }`}
+          >
+            {isMiterMode ? 'Disable Edge Pick Mode' : 'Enable Edge Pick Mode'}
+          </button>
+          {!isMiterMode && (
+            <p className="text-xs text-slate-500 mb-2">
+              Enable edge pick mode, then click an edge on this box in the viewport.
+            </p>
+          )}
+          {isMiterMode && !activeMiterDraft && (
+            <p className="text-xs text-slate-500 mb-2">
+              Click an edge in the viewport to start a cut preview.
+            </p>
+          )}
+          {activeMiterDraft && (
+            <div className="space-y-2 p-2 bg-rose-50 border border-rose-200 rounded-lg">
+              <div className="text-xs text-rose-800">
+                Edge: <span className="font-semibold">{BETA_MITER_EDGE_LABELS[activeMiterDraft.edge]}</span>
+              </div>
+              <div className="text-xs text-rose-800">
+                Entry face: <span className="font-semibold capitalize">{activeMiterDraft.entryFace}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-slate-600 w-16">Angle</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={89}
+                  value={activeMiterDraft.angle}
+                  onChange={(e) => {
+                    const v = Number(e.target.value);
+                    if (!Number.isNaN(v)) {
+                      onMiterDraftChange?.({ ...activeMiterDraft, angle: Math.max(1, Math.min(89, v)) });
+                    }
+                  }}
+                  className="flex-1 px-2 py-1 bg-white border border-slate-300 rounded-lg text-slate-800 text-xs focus:outline-none focus:ring-2 focus:ring-rose-400"
+                />
+                <span className="text-xs text-slate-500">deg</span>
+              </div>
+              <div className="flex gap-1">
+                {[30, 45, 60].map((a) => (
+                  <button
+                    key={a}
+                    onClick={() => onMiterDraftChange?.({ ...activeMiterDraft, angle: a })}
+                    className={`flex-1 px-2 py-1 text-xs rounded-lg border transition-colors ${
+                      activeMiterDraft.angle === a
+                        ? 'bg-rose-600 text-white border-rose-600'
+                        : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+                    }`}
+                  >
+                    {a}°
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleApplyMiterCut}
+                  className="flex-1 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-medium rounded-lg transition-colors"
+                >
+                  Apply Cut
+                </button>
+                <button
+                  onClick={() => onMiterDraftChange?.(null)}
+                  className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-medium rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          {(selectedBox.betaMiterCuts?.length ?? 0) > 0 && (
+            <div className="mt-2 space-y-1">
+              {(selectedBox.betaMiterCuts ?? []).map((cut) => (
+                <div key={cut.id} className="flex items-center justify-between p-2 bg-slate-50 border border-slate-200 rounded-lg">
+                  <div className="text-xs text-slate-700">
+                    {BETA_MITER_EDGE_LABELS[cut.edge]} • {cut.angle}°
+                  </div>
+                  <button
+                    onClick={() => handleRemoveMiterCut(cut.id)}
+                    className="text-xs text-red-600 hover:text-red-700"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* Actions */}
         <div className="space-y-2">

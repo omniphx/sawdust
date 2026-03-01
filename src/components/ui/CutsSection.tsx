@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { v4 as uuid } from 'uuid';
 import { Box, BoxCut, CutEdge, CutFace } from '../../types';
+import { UnitSystem } from '../../types';
 import { useCutFaceHover } from '../../store/cutFaceHoverContext';
 import { FACE_EDGES, DEFAULT_EDGE } from '../../core/cuts';
 
@@ -25,24 +26,22 @@ const ALL_FACES: CutFace[] = ['top', 'left', 'front', 'right', 'back', 'bottom']
 
 interface CutsSectionProps {
   box: Box;
+  unitSystem?: UnitSystem;
   onUpdateCuts: (cuts: BoxCut[]) => void;
 }
 
 export function CutsSection({ box, onUpdateCuts }: CutsSectionProps) {
   const cuts = box.cuts ?? [];
   const { setHoveredCutFace } = useCutFaceHover();
-  const hasCuts = (box.cuts?.length ?? 0) > 0;
 
   // Clear highlight when this component unmounts (box deselected)
   useEffect(() => {
     return () => setHoveredCutFace(null);
   }, [setHoveredCutFace]);
 
-  useEffect(() => {
-    if (!hasCuts) {
-      onUpdateCuts([{ id: uuid(), face: 'left', angle: 45 }]);
-    }
-  }, [hasCuts, onUpdateCuts]);
+  const addCut = () => {
+    onUpdateCuts([...cuts, { id: uuid(), face: 'left', angle: 45 }]);
+  };
 
   const updateCut = (id: string, updates: Partial<BoxCut>) => {
     onUpdateCuts(cuts.map((c) => (c.id === id ? { ...c, ...updates } : c)));
@@ -54,7 +53,7 @@ export function CutsSection({ box, onUpdateCuts }: CutsSectionProps) {
 
   return (
     <div>
-      <h3 className="text-slate-600 text-sm font-medium mb-2">Miter Beta</h3>
+      <h3 className="text-slate-600 text-sm font-medium mb-2">Cuts</h3>
       {cuts.map((cut) => {
         const edges = FACE_EDGES[cut.face];
         const activeEdge = cut.edge ?? DEFAULT_EDGE[cut.face];
@@ -171,6 +170,12 @@ export function CutsSection({ box, onUpdateCuts }: CutsSectionProps) {
           </div>
         );
       })}
+      <button
+        onClick={addCut}
+        className="w-full px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium rounded-lg border border-slate-300 transition-colors"
+      >
+        + Add Cut
+      </button>
     </div>
   );
 }
