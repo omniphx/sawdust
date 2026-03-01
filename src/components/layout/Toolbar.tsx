@@ -11,11 +11,9 @@ interface ToolbarProps {
   onToggleMeasure?: () => void;
   isWallMode?: boolean;
   onToggleWallMode?: () => void;
-  isMiterMode?: boolean;
-  onToggleMiterMode?: () => void;
 }
 
-export function Toolbar({ onToggleComponentLibrary, showComponentLibrary, isMeasuring, onToggleMeasure, isWallMode, onToggleWallMode, isMiterMode, onToggleMiterMode }: ToolbarProps) {
+export function Toolbar({ onToggleComponentLibrary, showComponentLibrary, isMeasuring, onToggleMeasure, isWallMode, onToggleWallMode }: ToolbarProps) {
   const { state, addBox, saveComponent, cancelComponentBuilder, toggleSnap, undo, redo, canUndo, canRedo, importProject } = useProjectStore();
   const { project, setUnitSystem } = useProject();
   const [componentName, setComponentName] = useState(state.currentTemplate?.name ?? '');
@@ -206,17 +204,6 @@ export function Toolbar({ onToggleComponentLibrary, showComponentLibrary, isMeas
         title="Measure (M)"
       >
         Measure
-      </button>
-      <button
-        onClick={onToggleMiterMode}
-        className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-          isMiterMode
-            ? 'bg-rose-600 text-white shadow-sm'
-            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-        }`}
-        title="Miter Saw Beta (B)"
-      >
-        Miter Beta
       </button>
 
       <div className="flex-1" />
