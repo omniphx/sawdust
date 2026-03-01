@@ -1,3 +1,5 @@
+import { Euler, Quaternion, Vector3 } from 'three';
+
 export interface Rotation3 {
   x: number;
   y: number;
@@ -55,13 +57,30 @@ export function rotatePositionAroundAxis(
   }
 }
 
-/** Adds an angle to one Euler component */
+/**
+ * Applies an incremental world-axis rotation to an existing Euler rotation.
+ * Uses quaternion composition to preserve rigid-body behavior for grouped items.
+ */
 export function addRotationOnAxis(
   rotation: Rotation3,
   axis: 'x' | 'y' | 'z',
   angle: number,
 ): Rotation3 {
-  return { ...rotation, [axis]: rotation[axis] + angle };
+  const currentEuler = new Euler(rotation.x, rotation.y, rotation.z, 'XYZ');
+  const currentQuat = new Quaternion().setFromEuler(currentEuler);
+
+  const axisVector =
+    axis === 'x'
+      ? new Vector3(1, 0, 0)
+      : axis === 'y'
+        ? new Vector3(0, 1, 0)
+        : new Vector3(0, 0, 1);
+  const deltaQuat = new Quaternion().setFromAxisAngle(axisVector, angle);
+
+  // Pre-multiply so the delta is applied in world space.
+  const nextQuat = deltaQuat.multiply(currentQuat);
+  const nextEuler = new Euler().setFromQuaternion(nextQuat, 'XYZ');
+  return { x: nextEuler.x, y: nextEuler.y, z: nextEuler.z };
 }
 
 /**
